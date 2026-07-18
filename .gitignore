@@ -1,0 +1,16 @@
+# 生成物（音声・zip）はコミットしない
+outputs/
+output/
+*.wav
+*.zip
+
+# クローンしてくる上流リポジトリ・仮想環境
+Irodori-TTS/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store

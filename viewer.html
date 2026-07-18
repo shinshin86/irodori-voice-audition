@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ペルソナ音声 聞き比べ</title>
+<style>
+  :root{
+    --bg:#f5f3ef; --panel:#ffffff; --ink:#242029; --muted:#7a7484; --faint:#a8a2b0;
+    --line:#e6e1d9; --accent:#6b4dff; --accent-soft:#efeaff; --ok:#1fa971;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#141218;--panel:#1d1b24;--ink:#ece9f2;--muted:#948ea3;--faint:#6b6577;
+      --line:#2b2833;--accent:#8f78ff;--accent-soft:#241f36;--ok:#3ec38a;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:800px;margin:0 auto;padding:24px 20px 60px}
+  .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  h1{font-size:18px;font-weight:650;letter-spacing:-.01em;margin:0}
+  .count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .banner{font-size:12.5px;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);border-radius:8px;padding:7px 11px;margin-bottom:16px}
+  .load{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+  .btn{font:inherit;font-size:13px;padding:8px 14px;border-radius:9px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .empty{border:1.5px dashed var(--line);border-radius:14px;padding:40px 26px;text-align:center;color:var(--muted)}
+  .empty b{color:var(--ink);font-weight:600;display:block;font-size:16px;margin-bottom:6px}
+  .empty code{font-family:var(--mono);font-size:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:6px;padding:1px 6px}
+  ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+  li{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 16px;
+    display:grid;grid-template-columns:30px 1fr;gap:6px 14px;align-items:start}
+  .n{grid-row:1/3;font-family:var(--mono);font-size:12px;color:var(--faint);text-align:right;
+    padding-top:2px;font-variant-numeric:tabular-nums}
+  .cap{font-size:15px;line-height:1.5;color:var(--ink);overflow-wrap:anywhere}
+  .cap.none{color:var(--faint);font-style:italic}
+  .foot{display:flex;align-items:center;gap:10px;min-width:0}
+  audio{height:36px;flex:1;min-width:0}
+  .name{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:180px;flex:none}
+  .drop{position:fixed;inset:0;background:color-mix(in srgb,var(--accent) 12%,var(--bg));
+    display:none;place-items:center;pointer-events:none;z-index:10}
+  .drop.show{display:grid}
+  .drop div{border:2px dashed var(--accent);border-radius:18px;padding:36px 54px;font-weight:600;
+    color:var(--accent);background:var(--panel);font-size:17px}
+  @media (max-width:520px){ .name{max-width:96px} .foot{flex-wrap:wrap} }
+</style>
+</head>
+<body>
+<div class="drop" id="drop"><div>ここにドロップ</div></div>
+<div class="wrap">
+  <div class="head">
+    <h1>🎧 ペルソナ音声 聞き比べ</h1>
+    <span class="count" id="count" hidden></span>
+  </div>
+  <p class="sub">VoiceDesignで作った声を、キャプションと一緒に並べて聞き比べる（アバターの声探し用）</p>
+  <div class="banner" id="banner" hidden></div>
+  <div class="load">
+    <button class="btn primary" id="pickFiles">音声を選ぶ</button>
+    <button class="btn" id="pickFolder">フォルダを選ぶ</button>
+  </div>
+  <div class="empty" id="empty">
+    <b>outputs/ を自動で探しています…</b>
+    ローカルサーバー経由なら <code>outputs/</code> を自動表示します（<code>python3 -m http.server</code> 推奨）。<br>
+    直接開いた場合は、音声＋captions.json をこの画面にドロップ、または上のボタンから選択してください
+  </div>
+  <ul id="list"></ul>
+</div>
+<input id="fileInput" type="file" multiple accept="audio/*,.json,.txt" hidden>
+<input id="folderInput" type="file" webkitdirectory hidden>
+<script>
+  const $=s=>document.querySelector(s);
+  const AUDIO_RE=/\.(wav|mp3|ogg|oga|flac|m4a|aac|webm|opus)$/i;
+  const fn=n=>n.replace(/^.*[\/\\]/,'');
+  const base=n=>fn(n).replace(/\.[^.]+$/,'');
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let items=[];
+
+  function setItems(list){ items=list; render(); }
+  function render(){
+    const has=items.length>0;
+    $('#empty').hidden=has; $('#count').hidden=!has;
+    $('#count').textContent=has?`${items.length} 件`:'';
+    $('#list').innerHTML=items.map((it,i)=>`
+      <li>
+        <span class="n">${String(i+1).padStart(2,'0')}</span>
+        <div class="cap${it.caption?'':' none'}">${it.caption?esc(it.caption):'(キャプションなし)'}</div>
+        <div class="foot">
+          <audio controls preload="none" src="${it.url}"></audio>
+          <span class="name" title="${esc(it.name)}">${esc(it.name)}</span>
+        </div>
+      </li>`).join('');
+  }
+
+  // --- outputs/ を自動読み込み（http server 経由のとき） ---
+  async function autoload(){
+    try{
+      const res=await fetch('outputs/captions.json',{cache:'no-store'});
+      if(!res.ok) throw 0;
+      const data=await res.json();
+      const arr=Array.isArray(data)
+        ? data.map(o=>({file:fn(o.file||o.name||o.filename||''),caption:o.caption||o.text||''}))
+        : Object.entries(data).map(([k,v])=>({file:fn(k),caption:typeof v==='string'?v:(v.caption||'')}));
+      const list=arr.filter(o=>o.file).map(o=>({name:o.file,caption:o.caption,url:'outputs/'+encodeURIComponent(o.file)}));
+      list.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+      if(list.length){
+        const b=$('#banner'); b.hidden=false; b.textContent=`outputs/ から自動読み込み（${list.length}件）`;
+        setItems(list);
+      }
+    }catch(e){ /* サーバー経由でない/未生成 → ドロップ待ち */ }
+  }
+
+  // --- 手動読み込み（ドロップ/選択） ---
+  async function add(fileList){
+    const files=[...fileList];
+    const cap={};
+    for(const f of files.filter(f=>/\.json$/i.test(f.name))){
+      try{const d=JSON.parse(await f.text());
+        if(Array.isArray(d)) d.forEach(o=>{const k=o.file||o.name||o.filename;if(k)cap[fn(k)]=o.caption||o.text||'';});
+        else Object.entries(d).forEach(([k,v])=>cap[fn(k)]=typeof v==='string'?v:(v.caption||''));
+      }catch(e){ alert('captions.json を読めませんでした'); }
+    }
+    for(const f of files.filter(f=>/\.txt$/i.test(f.name))) cap[base(f.name)]=(await f.text()).trim();
+    const audios=files.filter(f=>AUDIO_RE.test(f.name));
+    if(!audios.length){ if(!items.length) alert('音声ファイルが見つかりませんでした'); return; }
+    audios.sort((a,b)=>fn(a.name).localeCompare(fn(b.name),undefined,{numeric:true}));
+    $('#banner').hidden=true;
+    setItems(audios.map(f=>({name:fn(f.name),url:URL.createObjectURL(f),caption:cap[fn(f.name)]??cap[base(f.name)]??''})));
+  }
+
+  $('#pickFiles').addEventListener('click',()=>$('#fileInput').click());
+  $('#pickFolder').addEventListener('click',()=>$('#folderInput').click());
+  $('#fileInput').addEventListener('change',e=>{add(e.target.files);e.target.value='';});
+  $('#folderInput').addEventListener('change',e=>{add(e.target.files);e.target.value='';});
+  let dragN=0;const drop=$('#drop');
+  window.addEventListener('dragenter',e=>{e.preventDefault();dragN++;drop.classList.add('show');});
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('dragleave',e=>{e.preventDefault();if(--dragN<=0)drop.classList.remove('show');});
+  window.addEventListener('drop',e=>{e.preventDefault();dragN=0;drop.classList.remove('show');
+    if(e.dataTransfer.files.length)add(e.dataTransfer.files);});
+
+  autoload();
+</script>
+</body>
+</html>

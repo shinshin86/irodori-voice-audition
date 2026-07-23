@@ -6,18 +6,6 @@
 
 Made for the case where you don't yet have a concrete image of the voice you want. Instead of putting the target into words first, you generate a wide spread of candidates, listen through them, and let your ear find the direction.
 
-## Flow
-
-```
-[1] captions.json (voice descriptions for many personas)
-        |  <- (re)generate with prompts/persona-captions-prompt.md
-        v
-[2] Generate voice_01..NN.wav with Irodori VoiceDesign on Colab (GPU)
-        |  <- batch_gen.py (recommended, fast) / colab_generate.py (simple)
-        v
-[3] Open outputs/ in viewer.html, audition with captions, pick your voice
-```
-
 ## What's inside
 
 | File | Role |
@@ -34,12 +22,22 @@ Made for the case where you don't yet have a concrete image of the voice you wan
 - [Irodori-TTS](https://github.com/Aratako/Irodori-TTS) (`Aratako/Irodori-TTS-600M-v3-VoiceDesign`)
 - `viewer.html` runs in any modern browser (a local server is optional)
 
-## [1] Prepare captions
+## Usage
+
+Three steps overall:
+
+1. **[Step 1. Prepare captions](#step-1-prepare-captions)** — get `captions.json` (voice descriptions for many personas); (re)generate it with `prompts/persona-captions-prompt.md`
+2. **[Step 2. Batch-generate on Colab](#step-2-batch-generate-on-colab-gpu-runtime)** — generate `voice_01..NN.wav` with Irodori VoiceDesign on a Colab GPU (`batch_gen.py` recommended & fast / `colab_generate.py` simple)
+3. **[Step 3. Audition](#step-3-audition)** — open `outputs/` in `viewer.html`, listen through with captions, pick your voice
+
+> 💡 Just want to try it? Skip Step 1 (the bundled `captions.json` works as-is) and start from Step 2.
+
+### Step 1. Prepare captions
 
 The starter `captions.json` works as-is. To regenerate it or change the count, hand
 `prompts/persona-captions-prompt.md` to an LLM (the more you vary gender, age, timbre, speaking style and mood, the more likely you are to stumble on a good voice while auditioning).
 
-## [2] Batch-generate on Colab (GPU runtime)
+### Step 2. Batch-generate on Colab (GPU runtime)
 
 Select a **GPU runtime** on Colab and run the cells in order. **`batch_gen.py` (loads the model once) is recommended.**
 Measured (Colab L4): dependency sync a few minutes -> 50 voices in **~107s** (one model load + ~2s per item).
@@ -78,10 +76,10 @@ uv run --no-sync python infer.py \
   --output-wav outputs/voice_01.wav
 ```
 
-### Simple `colab_generate.py`
+#### Simple `colab_generate.py`
 A fallback for environments where `batch_gen.py` doesn't work. It calls `infer.py` once per caption, reloading the model each time, so 50 items are slow (tens of seconds each). Output is the same.
 
-## [3] Audition
+### Step 3. Audition
 
 Extract the zip you downloaded from Colab into **this folder's `outputs/`** (`outputs/voice_*.wav` + `outputs/captions.json`),
 then start a simple server here and open `viewer.html`. It **auto-loads `outputs/`** and lists everything.

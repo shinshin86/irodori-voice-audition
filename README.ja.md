@@ -6,18 +6,6 @@
 
 「どんな声にするか具体的なイメージが無い」状態から、たくさんの声を並べて耳で当たりに寄せていくための道具立てです。声のイメージを先に言葉にできなくても、幅を持たせた候補を一気に聴いて方向性を掴む、という探し方に向いています。
 
-## 流れ
-
-```
-[1] captions.json（多数ペルソナの「声の説明」）
-        │  ← prompts/persona-captions-prompt.md で(再)生成できる
-        ▼
-[2] Colab(GPU) で Irodori VoiceDesign を回して voice_01..NN.wav を生成
-        │  ← batch_gen.py（推奨・高速）/ colab_generate.py（簡易）
-        ▼
-[3] outputs/ を viewer.html で開いてキャプション付きで聞き比べ、好みの声を選ぶ
-```
-
 ## 中身
 
 | ファイル | 役割 |
@@ -34,12 +22,22 @@
 - [Irodori-TTS](https://github.com/Aratako/Irodori-TTS)（`Aratako/Irodori-TTS-600M-v3-VoiceDesign`）
 - `viewer.html` はモダンブラウザだけで動く（サーバー不要でも可）
 
-## [1] キャプションを用意
+## 使い方
+
+全体は次の3ステップです。
+
+1. **[Step 1. キャプションを用意](#step-1-キャプションを用意)** — `captions.json`（多数ペルソナの「声の説明」）を用意。`prompts/persona-captions-prompt.md` で(再)生成できる
+2. **[Step 2. Colab で一括生成](#step-2-colab-で一括生成gpuランタイム)** — Colab(GPU) で Irodori VoiceDesign を回して `voice_01..NN.wav` を生成（`batch_gen.py` 推奨・高速 / `colab_generate.py` 簡易）
+3. **[Step 3. 聞き比べ](#step-3-聞き比べ)** — `outputs/` を `viewer.html` で開いてキャプション付きで聞き比べ、好みの声を選ぶ
+
+> 💡 とりあえず試すなら Step 1 は不要（同梱の `captions.json` がそのまま使えます）。Step 2 から始めてください。
+
+### Step 1. キャプションを用意
 
 初期セット `captions.json` がそのまま使えます。作り直したい/件数を変えたいときは
 `prompts/persona-captions-prompt.md` を LLM に渡して再生成してください（性別・年齢・声質・話し方・雰囲気の軸を散らすほど、聞き比べで良い声に出会いやすい）。
 
-## [2] Colab で一括生成（GPUランタイム）
+### Step 2. Colab で一括生成（GPUランタイム）
 
 Colab で **GPU ランタイム**を選び、順に実行。**`batch_gen.py`（モデル1回ロードの高速版）を推奨**。
 実測（Colab L4）: 依存同期 数分 → 50件生成 **約107秒**（1回ロード＋1件約2秒）。
@@ -78,10 +76,10 @@ uv run --no-sync python infer.py \
   --output-wav outputs/voice_01.wav
 ```
 
-### 簡易版 `colab_generate.py`
+#### 簡易版 `colab_generate.py`
 `batch_gen.py` が使えない環境向けのフォールバック。`infer.py` を1件ずつ呼ぶためモデルを毎回ロードし、50件だと遅い（1件あたり数十秒）。出力は同じ。
 
-## [3] 聞き比べ
+### Step 3. 聞き比べ
 
 Colab から落とした zip を **このフォルダの `outputs/` に展開**（`outputs/voice_*.wav` ＋ `outputs/captions.json`）したら、
 このフォルダで簡易サーバーを立てて `viewer.html` を開くだけ。**`outputs/` を自動で読み込んで一覧表示**します。

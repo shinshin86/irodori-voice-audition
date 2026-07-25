@@ -1,5 +1,7 @@
 # irodori-voice-audition
 
+![スタジオマイクを囲む3人の女性のイラスト](assets/irodori-voice-audition-logo.png)
+
 [English](README.md) | **日本語**
 
 > Irodori-TTS VoiceDesign で多数のペルソナ声を一括生成し、キャプション付きで聞き比べて「アバターの声」を探すための小さなツール群。

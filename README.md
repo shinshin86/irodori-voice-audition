@@ -1,5 +1,7 @@
 # irodori-voice-audition
 
+![Illustration of three women around a studio microphone](assets/irodori-voice-audition-logo.png)
+
 **English** | [日本語](README.ja.md)
 
 > A small toolkit to batch-generate many persona voices with Irodori-TTS VoiceDesign, then audition them side-by-side with captions to pick a voice for your avatar.

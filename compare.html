@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>モデル比較 聞き比べ</title>
+<style>
+  :root{
+    --bg:#f5f3ef; --panel:#ffffff; --ink:#242029; --muted:#7a7484; --faint:#a8a2b0;
+    --line:#e6e1d9; --accent:#6b4dff; --accent-soft:#efeaff; --ok:#1fa971; --star:#e0a100;
+    --heat:107,77,255;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#141218;--panel:#1d1b24;--ink:#ece9f2;--muted:#948ea3;--faint:#6b6577;
+      --line:#2b2833;--accent:#8f78ff;--accent-soft:#241f36;--ok:#3ec38a;--star:#f0b72f;--heat:143,120,255;}
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+  .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  h1{font-size:18px;font-weight:650;letter-spacing:-.01em;margin:0}
+  h2{font-size:14px;font-weight:650;margin:0 0 10px}
+  .count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .sub a{color:var(--accent)}
+  .banner{font-size:12.5px;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);border-radius:8px;padding:7px 11px;margin-bottom:16px}
+  .btn{font:inherit;font-size:13px;padding:7px 13px;border-radius:9px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .load,.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .load{margin-bottom:20px}
+  .tools{margin:0 0 14px}
+  .tools .sep{flex:1}
+  .empty{border:1.5px dashed var(--line);border-radius:14px;padding:40px 26px;text-align:center;color:var(--muted)}
+  .empty b{color:var(--ink);font-weight:600;display:block;font-size:16px;margin-bottom:6px}
+  code{font-family:var(--mono);font-size:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:6px;padding:1px 6px}
+  .meta{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  .meta q{color:var(--ink)}
+
+  /* 集計 */
+  .summary{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:18px}
+  .summary .note{font-size:12px;color:var(--muted);margin:8px 0 0}
+  .tbl{overflow-x:auto}
+  table{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%}
+  th,td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-weight:600;color:var(--muted);font-size:12px}
+  td.mname,th.mname{text-align:left}
+  td.mname{font-weight:600}
+  td.mname small{display:block;font-weight:400;color:var(--faint);font-family:var(--mono);font-size:10.5px}
+  td.top{outline:2px solid var(--accent);outline-offset:-3px;border-radius:6px;font-weight:700}
+  td.na{color:var(--faint)}
+
+  /* 絞り込み */
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{font:inherit;font-size:12.5px;padding:4px 11px;border-radius:999px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  /* 行 */
+  .rows{display:flex;flex-direction:column;gap:12px}
+  .row{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+  .row.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .rhead{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+  .n{font-family:var(--mono);font-size:12px;color:var(--faint);padding-top:2px;min-width:26px;text-align:right}
+  .rtext{flex:1;min-width:0}
+  .tag{display:inline-block;font-size:11.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);
+    border-radius:6px;padding:1px 7px;margin-right:6px;vertical-align:1px}
+  .cap{font-size:15px;overflow-wrap:anywhere}
+  .say{font-size:12.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+  .file{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px}
+  .playrow{flex:none}
+  .cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+  .cell{border:1px solid var(--line);border-radius:10px;padding:8px 9px;display:flex;flex-direction:column;gap:7px;
+    background:var(--bg)}
+  .cell.cur{border-color:var(--accent)}
+  .cell.best{border-color:var(--star);box-shadow:inset 0 0 0 1px var(--star)}
+  .chead{display:flex;align-items:center;gap:6px;min-width:0}
+  .mlabel{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+  .starbtn{font:inherit;font-size:15px;line-height:1;background:none;border:0;cursor:pointer;color:var(--faint);padding:2px}
+  .cell.best .starbtn{color:var(--star)}
+  .player{display:flex;align-items:center;gap:7px}
+  .play{flex:none;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink);cursor:pointer;display:grid;place-items:center;padding:0}
+  .play:hover{border-color:var(--accent)}
+  .play svg{width:12px;height:12px;fill:currentColor}
+  .cell.playing .play{background:var(--accent);border-color:var(--accent);color:#fff}
+  .bar{flex:1;height:4px;border-radius:2px;background:var(--line);overflow:hidden;cursor:pointer}
+  .bar i{display:block;height:100%;width:0;background:var(--accent)}
+  .missing{font-size:12px;color:var(--faint);padding:6px 0}
+  .scores{display:flex;gap:3px}
+  .sc{font:inherit;font-size:12px;flex:1;padding:3px 0;border-radius:6px;cursor:pointer;
+    border:1px solid var(--line);background:var(--panel);color:var(--muted);font-variant-numeric:tabular-nums}
+  .sc:hover{border-color:var(--accent);color:var(--ink)}
+  .sc.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+  .keys{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.9}
+  .keys kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:5px;padding:0 5px;background:var(--panel);color:var(--ink)}
+  .drop{position:fixed;inset:0;background:color-mix(in srgb,var(--accent) 12%,var(--bg));
+    display:none;place-items:center;pointer-events:none;z-index:10}
+  .drop.show{display:grid}
+  .drop div{border:2px dashed var(--accent);border-radius:18px;padding:36px 54px;font-weight:600;
+    color:var(--accent);background:var(--panel);font-size:17px}
+  @media (max-width:520px){
+    .wrap{padding:18px 16px 60px}
+    .rhead{flex-wrap:wrap}
+    .playrow{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="drop" id="drop"><div>outputs フォルダをここにドロップ</div></div>
+<div class="wrap">
+  <div class="head">
+    <h1>🎚️ モデル比較 聞き比べ</h1>
+    <span class="count" id="count" hidden></span>
+  </div>
+  <p class="sub">同じキャプションをモデルごとに並べて聞き、狙いどおりに出たかを採点する（1モデルだけの一覧は <a href="viewer.html">viewer.html</a>）</p>
+  <div class="banner" id="banner" hidden></div>
+  <div class="load" id="load">
+    <button class="btn primary" id="pickFolder">outputs フォルダを選ぶ</button>
+    <button class="btn" id="importBtn">採点を読み込む</button>
+  </div>
+  <div class="empty" id="empty">
+    <b>outputs/models.json を探しています…</b>
+    <code>batch_gen.py --models v3,v4.1,...</code> の出力先で <code>python3 -m http.server</code> を立てると自動表示します。<br>
+    直接開いた場合は、outputs フォルダ（models.json を含む）をドロップするか、上のボタンから選択してください
+  </div>
+
+  <div id="main" hidden>
+    <p class="meta" id="meta"></p>
+    <section class="summary" aria-label="集計">
+      <h2>集計（平均スコア / ★ = その行のベストに選んだ数）</h2>
+      <div class="tbl" id="summary"></div>
+      <p class="note" id="sumNote"></p>
+    </section>
+    <div class="tools">
+      <button class="btn" id="blindBtn" aria-pressed="false" title="モデル名を隠し、行ごとに並び順をシャッフルする">ブラインド</button>
+      <button class="btn" id="unratedBtn" aria-pressed="false">未採点の行だけ</button>
+      <span class="sep"></span>
+      <button class="btn" id="exportJson">JSON 書き出し</button>
+      <button class="btn" id="exportCsv">CSV 書き出し</button>
+      <button class="btn" id="importBtn2">読み込み</button>
+      <button class="btn" id="resetBtn">採点をリセット</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="rows" id="rows"></div>
+    <p class="keys">
+      キーボード: <kbd>↑</kbd><kbd>↓</kbd> 行 · <kbd>←</kbd><kbd>→</kbd> モデル · <kbd>Space</kbd> 再生/停止 ·
+      <kbd>1</kbd>〜<kbd>5</kbd> 採点（<kbd>0</kbd> 取り消し） · <kbd>B</kbd> この行のベスト · <kbd>R</kbd> 行を順に再生 · <kbd>N</kbd> 次の未採点へ
+    </p>
+  </div>
+</div>
+<input id="folderInput" type="file" webkitdirectory hidden>
+<input id="importInput" type="file" accept=".json,application/json" hidden>
+<script>
+  const $=s=>document.querySelector(s);
+  const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fn=n=>String(n).replace(/^.*[\/\\]/,'');
+  const PLAY='<svg viewBox="0 0 12 12"><path d="M3 1.5v9l7.5-4.5z"/></svg>';
+  const STOP='<svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/></svg>';
+  const SCORE_LABEL={1:'外れ',2:'弱い',3:'まあまあ',4:'近い',5:'狙い通り'};
+
+  // ---- 状態 ----
+  let data=null;        // {text, captions:[{file,caption,text?,tag?}], models:[{id,checkpoint,dir,files}]}
+  let urlOf=null;       // (model, file) => url | null
+  let store={ratings:{},best:{}};   // ratings[file][modelId]=1..5, best[file]=modelId
+  let storeKey='';
+  let tag='', blind=false, unratedOnly=false;
+  let cur={row:0,col:0};
+  const audio=new Audio();
+  let playing=null;     // {file, mid}
+  let queue=[];
+
+  // ---- 保存（ブラウザ内のみ。失敗しても動作は続ける） ----
+  function hash(s){let h=2166136261;for(const c of s){h^=c.codePointAt(0);h=Math.imul(h,16777619);}return (h>>>0).toString(36);}
+  function load(){try{const s=JSON.parse(localStorage.getItem(storeKey)||'null');if(s&&s.ratings)store={ratings:s.ratings,best:s.best||{}};}catch(e){}}
+  function save(){try{localStorage.setItem(storeKey,JSON.stringify(store));}catch(e){}}
+  function prefs(){try{const p=JSON.parse(localStorage.getItem('irodori-compare:prefs')||'{}');blind=!!p.blind;}catch(e){}}
+  function savePrefs(){try{localStorage.setItem('irodori-compare:prefs',JSON.stringify({blind}));}catch(e){}}
+
+  // ---- データ読み込み ----
+  function normalize(m){
+    const caps=(m.captions||[]).map((o,i)=>({file:fn(o.file||o.name||`voice_${String(i+1).padStart(2,'0')}.wav`),
+      caption:o.caption||'',text:o.text||'',tag:o.tag||''}));
+    const models=(m.models||[]).map(x=>({id:String(x.id),checkpoint:x.checkpoint||'',dir:x.dir||x.id,
+      files:new Set((x.files||caps.map(c=>c.file)).map(fn)),failed:new Set((x.failed||[]).map(fn))}));
+    return {text:m.text||'',captions:caps,models};
+  }
+  function start(manifest,resolver,label){
+    data=normalize(manifest);
+    if(!data.models.length||!data.captions.length){alert('models.json にモデルかキャプションがありません');return;}
+    urlOf=resolver;
+    storeKey='irodori-compare:'+hash(data.models.map(m=>m.id).join('|')+'#'+data.captions.map(c=>c.file).join('|'));
+    store={ratings:{},best:{}}; load();
+    tag=''; cur={row:0,col:0};
+    const b=$('#banner'); b.hidden=false; b.textContent=label;
+    $('#empty').hidden=true; $('#load').hidden=true; $('#main').hidden=false;
+    renderAll();
+  }
+  async function autoload(){
+    try{
+      const res=await fetch('outputs/models.json',{cache:'no-store'});
+      if(!res.ok) throw 0;
+      const m=await res.json();
+      start(m,(model,file)=>model.files.has(file)?`outputs/${encodeURIComponent(model.dir)}/${encodeURIComponent(file)}`:null,
+        `outputs/models.json から自動読み込み（${(m.models||[]).length}モデル × ${(m.captions||[]).length}キャプション）`);
+    }catch(e){ /* サーバー経由でない/未生成 → 選択・ドロップ待ち */ }
+  }
+  // パス付きファイル一覧（フォルダ選択・ドロップ）から読み込む
+  async function fromFiles(entries){
+    const manifestFile=entries.filter(e=>fn(e.path)==='models.json').sort((a,b)=>a.path.length-b.path.length)[0];
+    if(!manifestFile){alert('models.json が見つかりませんでした。batch_gen.py --models の出力フォルダを選んでください');return;}
+    const root=manifestFile.path.slice(0,-'models.json'.length);
+    let m; try{m=JSON.parse(await manifestFile.file.text());}catch(e){alert('models.json を読めませんでした');return;}
+    const byPath=new Map(entries.map(e=>[e.path,e.file]));
+    const urls=new Map();
+    start(m,(model,file)=>{
+      const k=`${root}${model.dir}/${file}`;
+      if(!byPath.has(k)) return null;
+      if(!urls.has(k)) urls.set(k,URL.createObjectURL(byPath.get(k)));
+      return urls.get(k);
+    },`フォルダから読み込み（${(m.models||[]).length}モデル）`);
+  }
+  async function walk(entry,prefix,out){
+    if(entry.isFile){out.push({path:prefix+entry.name,file:await new Promise((r,j)=>entry.file(r,j))});return;}
+    const reader=entry.createReader();
+    for(;;){
+      const batch=await new Promise((r,j)=>reader.readEntries(r,j));
+      if(!batch.length) break;
+      for(const e of batch) await walk(e,prefix+entry.name+'/',out);
+    }
+  }
+
+  // ---- 表示順・ブラインド ----
+  function visibleRows(){
+    return data.captions.filter(c=>(!tag||c.tag===tag)&&(!unratedOnly||!isRated(c.file)));
+  }
+  function isRated(file){
+    const r=store.ratings[file]||{};
+    return data.models.every(m=>!urlOf(m,file)||r[m.id]);
+  }
+  function orderFor(file){
+    if(!blind) return data.models;
+    // 行ごとに決まった順でシャッフル（再読み込みしても同じ並び）
+    return [...data.models].sort((a,b)=>hash(file+'|'+a.id).localeCompare(hash(file+'|'+b.id)));
+  }
+  const letter=i=>String.fromCharCode(65+i);
+  function shortId(m){return m.checkpoint?m.checkpoint.replace(/^Aratako\//,''):m.id;}
+
+  // ---- 描画 ----
+  function renderAll(){
+    $('#count').hidden=false;
+    $('#count').textContent=`${data.models.length} モデル × ${data.captions.length} キャプション`;
+    // 全キャプションが個別の読み上げ文を持つなら既定文は使われないので出さない
+    $('#meta').innerHTML=data.text&&data.captions.some(c=>!c.text)?`既定の読み上げ文: <q>${esc(data.text)}</q>`:'';
+    $('#blindBtn').setAttribute('aria-pressed',blind);
+    $('#unratedBtn').setAttribute('aria-pressed',unratedOnly);
+    const tags=[...new Set(data.captions.map(c=>c.tag).filter(Boolean))];
+    $('#chips').hidden=!tags.length;
+    $('#chips').innerHTML=['',...tags].map(t=>`<button class="chip" data-tag="${esc(t)}" aria-pressed="${t===tag}">${t?esc(t):'すべて'}</button>`).join('');
+    renderRows(); renderSummary();
+  }
+  function renderRows(){
+    const rows=visibleRows();
+    cur.row=Math.min(cur.row,Math.max(rows.length-1,0));
+    $('#rows').innerHTML=rows.length?rows.map((c,ri)=>{
+      const idx=data.captions.indexOf(c)+1;
+      const say=c.text&&c.text!==data.text?`<div class="say">読み上げ: ${esc(c.text)}</div>`:'';
+      const cells=orderFor(c.file).map((m,ci)=>cellHtml(c,m,ci,ri)).join('');
+      return `<div class="row${ri===cur.row?' active':''}" data-row="${ri}" data-file="${esc(c.file)}">
+        <div class="rhead">
+          <span class="n">${String(idx).padStart(2,'0')}</span>
+          <div class="rtext">
+            <div class="cap">${c.tag?`<span class="tag">${esc(c.tag)}</span>`:''}${esc(c.caption)||'<i>(キャプションなし)</i>'}</div>
+            ${say}<div class="file">${esc(c.file)}</div>
+          </div>
+          <button class="btn playrow" data-act="playrow">▶ 順に再生</button>
+        </div>
+        <div class="cells">${cells}</div>
+      </div>`;}).join(''):'<div class="empty">この条件に当てはまる行はありません</div>';
+  }
+  function cellHtml(c,m,ci,ri){
+    const url=urlOf(m,c.file);
+    const score=(store.ratings[c.file]||{})[m.id]||0;
+    const best=store.best[c.file]===m.id;
+    const isPlaying=playing&&playing.file===c.file&&playing.mid===m.id;
+    const label=blind?`モデル ${letter(ci)}`:esc(m.id);
+    const title=blind?'':` title="${esc(shortId(m))}"`;
+    const cls=['cell',ri===cur.row&&ci===cur.col?'cur':'',best?'best':'',isPlaying?'playing':''].filter(Boolean).join(' ');
+    const body=url?`
+      <div class="player">
+        <button class="play" data-act="play" aria-label="${label} を再生">${isPlaying?STOP:PLAY}</button>
+        <div class="bar" data-act="seek"><i></i></div>
+      </div>
+      <div class="scores" role="group" aria-label="採点">${[1,2,3,4,5].map(s=>
+        `<button class="sc${score===s?' on':''}" data-act="score" data-score="${s}" title="${s}: ${SCORE_LABEL[s]}">${s}</button>`).join('')}</div>`
+      :`<div class="missing">${m.failed.has(c.file)?'生成失敗':'未生成'}</div>`;
+    return `<div class="${cls}" data-mid="${esc(m.id)}" data-col="${ci}">
+      <div class="chead"><span class="mlabel"${title}>${label}</span>
+        ${url?`<button class="starbtn" data-act="best" aria-pressed="${best}" aria-label="この行のベストにする" title="この行のベスト">${best?'★':'☆'}</button>`:''}
+      </div>${body}</div>`;
+  }
+  function renderSummary(){
+    if(blind){ // 採点直後に集計が動くとどのモデルか分かってしまうので隠す
+      $('#summary').innerHTML='<p class="note">ブラインド中は集計を隠しています（ブラインドを解除すると表示）</p>';
+      $('#sumNote').textContent=''; return;
+    }
+    const tags=[...new Set(data.captions.map(c=>c.tag).filter(Boolean))];
+    const cols=[{key:'',label:'全体'},...tags.map(t=>({key:t,label:t}))];
+    const stat=(m,t)=>{
+      let sum=0,n=0;
+      for(const c of data.captions){ if(t&&c.tag!==t) continue;
+        const s=(store.ratings[c.file]||{})[m.id]; if(s){sum+=s;n++;} }
+      return n?sum/n:null;
+    };
+    const avg=data.models.map(m=>cols.map(c=>stat(m,c.key)));
+    const tops=cols.map((_,ci)=>{const v=avg.map(r=>r[ci]).filter(x=>x!=null);return v.length?Math.max(...v):null;});
+    const stars=m=>Object.values(store.best).filter(x=>x===m.id).length;
+    const rated=m=>data.captions.filter(c=>(store.ratings[c.file]||{})[m.id]).length;
+    const avail=m=>data.captions.filter(c=>urlOf(m,c.file)).length;
+    const heat=v=>v==null?'':`background:rgba(var(--heat),${((v-1)/4*0.45).toFixed(3)})`;
+    $('#summary').innerHTML=`<table><thead><tr><th class="mname">モデル</th><th>★</th><th>採点済</th>
+      ${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>
+      ${data.models.map((m,mi)=>`<tr><td class="mname">${esc(m.id)}<small>${esc(shortId(m))}</small></td>
+        <td>${stars(m)}</td><td>${rated(m)}/${avail(m)}</td>
+        ${avg[mi].map((v,ci)=>v==null?'<td class="na">–</td>':
+          `<td class="${tops[ci]!=null&&v===tops[ci]&&data.models.length>1?'top':''}" style="${heat(v)}">${v.toFixed(2)}</td>`).join('')}
+      </tr>`).join('')}</tbody></table>`;
+    const total=data.captions.length*data.models.length;
+    const done=data.models.reduce((a,m)=>a+rated(m),0);
+    $('#sumNote').textContent=`採点 ${done}/${total} · 枠で囲んだ値が列ごとの最高。採点はこのブラウザ内に保存されます（書き出しで持ち出せます）`;
+  }
+  // 再描画せずに一部だけ更新（再生中の音声を止めないため）
+  function refresh(){ const y=scrollY; renderRows(); renderSummary(); scrollTo(0,y); }
+
+  // ---- 再生 ----
+  function findCell(file,mid){
+    return [...document.querySelectorAll('.row')].find(r=>r.dataset.file===file)?.querySelector(`.cell[data-mid="${CSS.escape(mid)}"]`);
+  }
+  function setPlayingUI(on){
+    if(!playing) return;
+    const cell=findCell(playing.file,playing.mid); if(!cell) return;
+    cell.classList.toggle('playing',on);
+    const btn=cell.querySelector('.play'); if(btn) btn.innerHTML=on?STOP:PLAY;
+    if(!on){const bar=cell.querySelector('.bar i'); if(bar) bar.style.width='0';}
+  }
+  function play(file,mid,keepQueue){
+    if(!keepQueue) queue=[];
+    const m=data.models.find(x=>x.id===mid); const url=m&&urlOf(m,file);
+    if(!url) return next();
+    if(playing&&playing.file===file&&playing.mid===mid&&!audio.paused&&!keepQueue){stop();return;}
+    setPlayingUI(false);
+    playing={file,mid};
+    audio.src=url; audio.currentTime=0;
+    audio.play().catch(()=>{});
+    setPlayingUI(true);
+  }
+  function stop(){ queue=[]; audio.pause(); setPlayingUI(false); playing=null; }
+  function next(){
+    setPlayingUI(false); playing=null;
+    const n=queue.shift(); if(n) play(n.file,n.mid,true);
+  }
+  function playRow(file){
+    const list=orderFor(file).filter(m=>urlOf(m,file)).map(m=>({file,mid:m.id}));
+    if(!list.length) return;
+    const first=list.shift(); queue=list; play(first.file,first.mid,true);
+  }
+  audio.addEventListener('ended',next);
+  audio.addEventListener('timeupdate',()=>{
+    if(!playing||!audio.duration) return;
+    const bar=findCell(playing.file,playing.mid)?.querySelector('.bar i');
+    if(bar) bar.style.width=`${audio.currentTime/audio.duration*100}%`;
+  });
+
+  // ---- 採点 ----
+  function setScore(file,mid,s){
+    const r=store.ratings[file]||(store.ratings[file]={});
+    if(!s||r[mid]===s) delete r[mid]; else r[mid]=s;
+    save(); refresh();
+  }
+  function toggleBest(file,mid){
+    if(store.best[file]===mid) delete store.best[file]; else store.best[file]=mid;
+    save(); refresh();
+  }
+
+  // ---- クリック ----
+  $('#rows').addEventListener('click',e=>{
+    const el=e.target.closest('[data-act]'); if(!el) return;
+    const row=el.closest('.row'); const file=row.dataset.file;
+    const cell=el.closest('.cell');
+    cur.row=+row.dataset.row; if(cell) cur.col=+cell.dataset.col;
+    const act=el.dataset.act;
+    if(act==='playrow'){ playRow(file); markCur(); return; }
+    const mid=cell.dataset.mid;
+    if(act==='play') play(file,mid);
+    else if(act==='score') setScore(file,mid,+el.dataset.score);
+    else if(act==='best') toggleBest(file,mid);
+    else if(act==='seek'){
+      if(!(playing&&playing.file===file&&playing.mid===mid)) play(file,mid);
+      const r=el.getBoundingClientRect(); const ratio=(e.clientX-r.left)/r.width;
+      const go=()=>{audio.currentTime=ratio*audio.duration;};
+      audio.duration?go():audio.addEventListener('loadedmetadata',go,{once:true});
+    }
+    markCur();
+  });
+  function markCur(){
+    document.querySelectorAll('.row').forEach(r=>{
+      const on=+r.dataset.row===cur.row; r.classList.toggle('active',on);
+      r.querySelectorAll('.cell').forEach(c=>c.classList.toggle('cur',on&&+c.dataset.col===cur.col));
+    });
+  }
+  $('#chips').addEventListener('click',e=>{const c=e.target.closest('.chip'); if(!c) return;
+    tag=c.dataset.tag; cur={row:0,col:0}; stop(); renderAll();});
+  $('#blindBtn').addEventListener('click',()=>{blind=!blind; savePrefs(); stop(); renderAll();});
+  $('#unratedBtn').addEventListener('click',()=>{unratedOnly=!unratedOnly; cur={row:0,col:0}; stop(); renderAll();});
+
+  // ---- キーボード ----
+  window.addEventListener('keydown',e=>{
+    if(!data||e.metaKey||e.ctrlKey||e.altKey||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    const rows=visibleRows(); if(!rows.length) return;
+    const c=rows[cur.row]; const order=orderFor(c.file); const m=order[cur.col];
+    const k=e.key;
+    if(k==='ArrowDown'||k==='ArrowUp'){
+      cur.row=Math.max(0,Math.min(rows.length-1,cur.row+(k==='ArrowDown'?1:-1)));
+      markCur(); document.querySelector(`.row[data-row="${cur.row}"]`)?.scrollIntoView({block:'nearest',behavior:'smooth'});
+    }else if(k==='ArrowRight'||k==='ArrowLeft'){
+      cur.col=Math.max(0,Math.min(order.length-1,cur.col+(k==='ArrowRight'?1:-1))); markCur();
+      play(rows[cur.row].file,order[cur.col].id);
+    }else if(k===' '){ playing&&!audio.paused?stop():play(c.file,m.id); }
+    else if(/^[0-5]$/.test(k)){ if(urlOf(m,c.file)) setScore(c.file,m.id,+k); }
+    else if(k==='b'||k==='B'){ if(urlOf(m,c.file)) toggleBest(c.file,m.id); }
+    else if(k==='r'||k==='R'){ playRow(c.file); }
+    else if(k==='n'||k==='N'){
+      const i=rows.findIndex((r,j)=>j>cur.row&&!isRated(r.file));
+      const j=i>=0?i:rows.findIndex(r=>!isRated(r.file));
+      if(j>=0){cur.row=j;cur.col=0;markCur();document.querySelector(`.row[data-row="${j}"]`)?.scrollIntoView({block:'center',behavior:'smooth'});}
+    }else return;
+    e.preventDefault();
+  });
+
+  // ---- 書き出し・読み込み ----
+  function download(name,text,type){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([text],{type}));
+    a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  $('#exportJson').addEventListener('click',()=>{
+    download('compare-ratings.json',JSON.stringify({
+      models:data.models.map(m=>({id:m.id,checkpoint:m.checkpoint})),
+      captions:data.captions, ratings:store.ratings, best:store.best},null,2),'application/json');
+  });
+  $('#exportCsv').addEventListener('click',()=>{
+    const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+    const lines=[['file','tag','caption','text','model','checkpoint','score','best'].join(',')];
+    for(const c of data.captions) for(const m of data.models){
+      if(!urlOf(m,c.file)) continue;
+      lines.push([c.file,c.tag,c.caption,c.text||data.text,m.id,m.checkpoint,
+        (store.ratings[c.file]||{})[m.id]||'',store.best[c.file]===m.id?1:0].map(q).join(','));
+    }
+    download('compare-ratings.csv','﻿'+lines.join('\n')+'\n','text/csv');
+  });
+  const pickImport=()=>$('#importInput').click();
+  $('#importBtn').addEventListener('click',pickImport);
+  $('#importBtn2').addEventListener('click',pickImport);
+  $('#importInput').addEventListener('change',async e=>{
+    const f=e.target.files[0]; e.target.value=''; if(!f) return;
+    try{
+      const d=JSON.parse(await f.text());
+      if(!data){alert('先に outputs フォルダを読み込んでください');return;}
+      for(const [file,r] of Object.entries(d.ratings||{})) store.ratings[file]={...(store.ratings[file]||{}),...r};
+      Object.assign(store.best,d.best||{});
+      save(); refresh();
+    }catch(err){alert('採点ファイルを読めませんでした');}
+  });
+  $('#resetBtn').addEventListener('click',()=>{
+    if(!confirm('このデータセットの採点をすべて消します。よろしいですか？')) return;
+    store={ratings:{},best:{}}; save(); refresh();
+  });
+
+  // ---- フォルダ選択・ドロップ ----
+  $('#pickFolder').addEventListener('click',()=>$('#folderInput').click());
+  $('#folderInput').addEventListener('change',e=>{
+    fromFiles([...e.target.files].map(f=>({path:f.webkitRelativePath||f.name,file:f}))); e.target.value='';
+  });
+  let dragN=0; const drop=$('#drop');
+  window.addEventListener('dragenter',e=>{e.preventDefault();dragN++;drop.classList.add('show');});
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('dragleave',e=>{e.preventDefault();if(--dragN<=0)drop.classList.remove('show');});
+  window.addEventListener('drop',async e=>{
+    e.preventDefault(); dragN=0; drop.classList.remove('show');
+    const entries=[...e.dataTransfer.items].map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);
+    const out=[]; for(const en of entries) await walk(en,'',out);
+    if(out.length) fromFiles(out);
+  });
+
+  prefs();
+  autoload();
+</script>
+</body>
+</html>

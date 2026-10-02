@@ -1,5 +1,6 @@
 # 生成物（音声・zip）はコミットしない
 outputs/
+outputs-*/
 output/
 *.wav
 *.zip

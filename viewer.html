@@ -23,6 +23,7 @@
   h1{font-size:18px;font-weight:650;letter-spacing:-.01em;margin:0}
   .count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto}
   .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .sub a,.banner a{color:var(--accent)}
   .banner{font-size:12.5px;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);
     border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);border-radius:8px;padding:7px 11px;margin-bottom:16px}
   .load{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
@@ -61,7 +62,7 @@
     <h1>🎧 ペルソナ音声 聞き比べ</h1>
     <span class="count" id="count" hidden></span>
   </div>
-  <p class="sub">VoiceDesignで作った声を、キャプションと一緒に並べて聞き比べる（アバターの声探し用）</p>
+  <p class="sub">VoiceDesignで作った声を、キャプションと一緒に並べて聞き比べる（アバターの声探し用 · 複数モデルの比較は <a href="compare.html">compare.html</a>）</p>
   <div class="banner" id="banner" hidden></div>
   <div class="load">
     <button class="btn primary" id="pickFiles">音声を選ぶ</button>
@@ -115,7 +116,14 @@
         const b=$('#banner'); b.hidden=false; b.textContent=`outputs/ から自動読み込み（${list.length}件）`;
         setItems(list);
       }
-    }catch(e){ /* サーバー経由でない/未生成 → ドロップ待ち */ }
+    }catch(e){
+      // --models で複数モデルを生成した出力なら比較画面へ案内
+      try{
+        const r=await fetch('outputs/models.json',{cache:'no-store'});
+        if(r.ok){ const b=$('#banner'); b.hidden=false; $('#empty').hidden=true;
+          b.innerHTML='outputs/ は複数モデルの比較用の出力です → <a href="compare.html">compare.html</a> で聞き比べ'; }
+      }catch(_){ /* サーバー経由でない/未生成 → ドロップ待ち */ }
+    }
   }
 
   // --- 手動読み込み（ドロップ/選択） ---

@@ -18,20 +18,24 @@ Made for the case where you don't yet have a concrete image of the voice you wan
 [3] Open outputs/ in viewer.html, audition with captions, pick your voice
 ```
 
+You can also generate the same captions with several Irodori models and score them side by side to find **which model best hits the voice or emotion you're after** (`batch_gen.py --models` -> `compare.html`).
+
 ## What's inside
 
 | File | Role |
 |---|---|
 | `captions.json` | Voice descriptions for 50 personas (ready-to-use starter set) |
+| `captions_emotions.json` | Test set for comparing how emotion captions land (female/male x 10 emotions, same read-aloud text for all) |
 | `prompts/persona-captions-prompt.md` | Prompt for an LLM (Claude Code / Codex, etc.) to (re)generate `captions.json` |
 | `batch_gen.py` | **Recommended, fast.** Loads the model once and generates all voices (50 in ~107s on a Colab L4) |
 | `colab_generate.py` | Simple fallback. Calls `infer.py` once per caption (slow) |
 | `viewer.html` | Audition the results as a **caption + play button** list (review only, no generation, dependency-free single HTML) |
+| `compare.html` | Audition multi-model output as a **caption x model** grid, score each clip 1-5 and see per-model totals (dependency-free single HTML) |
 
 ## Requirements
 
 - Python 3.10+ and a GPU (needed for Irodori VoiceDesign inference; **a Google Colab GPU runtime is recommended**)
-- [Irodori-TTS](https://github.com/Aratako/Irodori-TTS) (`Aratako/Irodori-TTS-600M-v3-VoiceDesign`)
+- [Irodori-TTS](https://github.com/Aratako/Irodori-TTS) (default `Aratako/Irodori-TTS-600M-v3-VoiceDesign`; see [2'] for the other supported models)
 - `viewer.html` runs in any modern browser (a local server is optional)
 
 ## [1] Prepare captions
@@ -67,7 +71,8 @@ from google.colab import files; files.download('voices.zip')
 ```
 
 - **The read-aloud text (`--text`) defaults to a neutral sentence.** If you later reuse a voice in a video, this avoids baking a claim or promo line into the demo audio that could contradict things afterward. Override with `--text "..."`.
-- **Reference-free generation from the caption alone (`--no-ref`)** — pure VoiceDesign. All parameters match the defaults in the official `infer.py` argparse (`num_steps=40`, `cfg 3.0/3.0`, `guidance=independent`, etc.).
+- **Reference-free generation from the caption alone (`--no-ref`)** — pure VoiceDesign. All parameters match the defaults in the official `infer.py` argparse (`cfg 3.0/3.0`, `guidance=independent`, etc.; `num_steps` follows the checkpoint default: 40 for regular models, 4 for MeanFlow models).
+- If an entry in captions.json has a `"text"` field, that entry uses it as its read-aloud text.
 - **Resume-friendly**: existing wavs are skipped, so a re-run continues where it stopped.
 - The generation API is the official `infer.py` (`InferenceRuntime` / `SamplingRequest`). To use the CLI directly:
 
@@ -80,6 +85,33 @@ uv run --no-sync python infer.py \
 
 ### Simple `colab_generate.py`
 A fallback for environments where `batch_gen.py` doesn't work. It calls `infer.py` once per caption, reloading the model each time, so 50 items are slow (tens of seconds each). Output is the same.
+
+## [2'] Generate with several models (`--models`)
+
+Pass a comma-separated list to `--models` and the script loads each model in turn and generates the same captions. Output goes to `outputs/<model>/`, and the list is written to `outputs/models.json`.
+
+```bash
+!cd Irodori-TTS && uv run --no-sync python batch_gen.py \
+    --captions ../captions_emotions.json --outdir ../outputs-emotions \
+    --models v3,v4.1,v4.1-mf,v4-large --seed 0
+```
+
+| Alias | Checkpoint | Notes |
+|---|---|---|
+| `v2` | `Aratako/Irodori-TTS-500M-v2-VoiceDesign` | Older release |
+| `v3` | `Aratako/Irodori-TTS-600M-v3-VoiceDesign` | Default when `--models` is not given |
+| `v4` | `Aratako/Irodori-TTS-v4-Small` | The author recommends v4.1 instead |
+| `v4.1` | `Aratako/Irodori-TTS-v4.1-Small` | |
+| `v4.1-mf` | `Aratako/Irodori-TTS-v4.1-Small-MF` | MeanFlow distilled, 4 steps (CFG settings don't apply) |
+| `v4.1-int8` | `Aratako/Irodori-TTS-v4.1-Small-Quantized/int8-weight-only` | torchao quantized (bf16 automatically) |
+| `v4-large` | `Aratako/Irodori-TTS-v4-Large` | 3.29B. **Subject to the Gemma Terms of Use** |
+| `v4-large-int8` | `Aratako/Irodori-TTS-v4-Large-Quantized/int8-weight-only` | Quantized Large (bf16 automatically). **Subject to the Gemma Terms of Use** |
+
+- Besides aliases, you can pass a Hugging Face repo id (`owner/repo` or `owner/repo/subfolder`).
+- `--precision auto` (default) loads quantized checkpoints in bf16 and everything else in fp32. Use `--precision bf16` if you run out of memory.
+- Fix `--seed` to make a run reproducible (the seed actually used is recorded in `models.json`).
+- If one model fails to load (e.g. out of VRAM), the remaining models still run. Re-running skips wavs that already exist.
+- **Use a separate `--outdir` per caption set** (`models.json` assumes a single caption set).
 
 ## [3] Audition
 
@@ -94,10 +126,27 @@ python3 -m http.server 8000
 Each voice appears with its caption, so you can play through and pick the one you like. Everything runs locally in the browser; the audio is never uploaded anywhere.
 (If you open `viewer.html` directly without a server, just drop the audio + `captions.json` onto the page to get the same view.)
 
+## [3'] Compare models (`compare.html`)
+
+Put the output folder from `--models` at `outputs/` (or rename it to that), start a server and open `compare.html`.
+
+```bash
+python3 -m http.server 8000
+# http://localhost:8000/compare.html -> outputs/models.json is shown automatically
+```
+
+- Each caption gets a row of models. Play each one, **score it 1-5**, and pick **one ★ best per row**. "▶ 順に再生" (play in order) plays the same caption through every model back to back.
+- The summary table at the top shows each model's average score and ★ count, **broken down by emotion (`tag`)**. The best value in each column is outlined, so you can spot patterns like "v4-large for anger, v4.1 for embarrassment".
+- **Blind mode** hides model names behind "Model A/B/C..." and shuffles the order per row, so you can score without bias (the summary is hidden while blind mode is on).
+- Keyboard: `↑↓` row, `←→` model (plays on move), `Space` play/stop, `1`-`5` score, `B` best, `R` play row in order, `N` next unscored row.
+- Scores are stored in the browser (localStorage). Export them as JSON / CSV; a JSON export can be imported to pick up where you left off.
+- Without a server, drop the output folder (containing `models.json`) onto the page or use "outputs フォルダを選ぶ" (choose outputs folder).
+
 ## Notes
 
 - Generated artifacts (`outputs/`, wav, zip) are not committed to the repo (already in `.gitignore`).
 - **Follow the upstream license and terms** for the Irodori-TTS model and codec. Whether you may use the generated audio also depends on the upstream terms.
+- In particular, `v4-large` / `v4-large-int8` use a Gemma-derived text encoder and are subject to the **Gemma Terms of Use and Prohibited Use Policy** (see each model card).
 
 ## Acknowledgments
 

@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>モデル比較 聞き比べ</title>
+<style>
+  :root{
+    --bg:#f5f3ef; --panel:#ffffff; --ink:#242029; --muted:#7a7484; --faint:#a8a2b0;
+    --line:#e6e1d9; --accent:#6b4dff; --accent-soft:#efeaff; --ok:#1fa971;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#141218;--panel:#1d1b24;--ink:#ece9f2;--muted:#948ea3;--faint:#6b6577;
+      --line:#2b2833;--accent:#8f78ff;--accent-soft:#241f36;--ok:#3ec38a;}
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1280px;margin:0 auto;padding:24px 20px 60px}
+  .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  h1{font-size:18px;font-weight:650;letter-spacing:-.01em;margin:0}
+  .count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .sub a,.banner a{color:var(--accent)}
+  .banner{font-size:12.5px;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);border-radius:8px;padding:7px 11px;margin-bottom:16px}
+  .btn{font:inherit;font-size:13px;padding:7px 13px;border-radius:9px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .load{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .empty{border:1.5px dashed var(--line);border-radius:14px;padding:40px 26px;text-align:center;color:var(--muted)}
+  .empty b{color:var(--ink);font-weight:600;display:block;font-size:16px;margin-bottom:6px}
+  code{font-family:var(--mono);font-size:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:6px;padding:1px 6px}
+  .meta{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+  .meta q{color:var(--ink)}
+
+  .bar-top{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+  .chip{font:inherit;font-size:12.5px;padding:4px 11px;border-radius:999px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .stopall{flex:none}
+
+  /* 表: 縦 = キャプション / 横 = モデル */
+  .grid{overflow:auto;max-height:calc(100vh - 120px);border:1px solid var(--line);border-radius:13px;background:var(--panel)}
+  table{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed}
+  col.ccap{width:300px}
+  th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);vertical-align:middle}
+  tr>*:last-child{border-right:0}
+  tbody tr:last-child>*{border-bottom:0}
+  thead th{position:sticky;top:0;z-index:2;background:var(--panel);padding:10px 12px;text-align:left;
+    font-weight:600}
+  thead th.corner{left:0;z-index:3;color:var(--muted);font-size:12px;font-weight:500}
+  tbody th{position:sticky;left:0;z-index:1;background:var(--panel);text-align:left;font-weight:400;
+    padding:10px 12px}
+  .mname{font-size:13.5px;display:block}
+  .mck{display:block;font-family:var(--mono);font-size:10.5px;color:var(--faint);font-weight:400;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+  .hrow{display:flex;align-items:flex-start;gap:8px}
+  .hrow .txt{flex:1;min-width:0}
+  .n{font-family:var(--mono);font-size:11px;color:var(--faint);padding-top:2px}
+  .tag{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);
+    border-radius:6px;padding:0 6px;margin-right:5px;vertical-align:1px}
+  .cap{font-size:13.5px;overflow-wrap:anywhere}
+  .say{font-size:11.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+  .seq{font:inherit;font-size:11.5px;flex:none;padding:3px 8px;border-radius:7px;cursor:pointer;
+    background:var(--bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .seq:hover{border-color:var(--accent);color:var(--ink)}
+  thead .seq,tbody .seq{margin-top:6px}
+
+  td{padding:8px 10px}
+  td.cur{box-shadow:inset 0 0 0 2px var(--accent)}
+  td.playing{background:var(--accent-soft)}
+  tr.hl>th,tr.hl>td{background:color-mix(in srgb,var(--accent) 4%,var(--panel))}
+  tr.hl>td.playing{background:var(--accent-soft)}
+  .player{display:flex;align-items:center;gap:8px}
+  .play{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink);cursor:pointer;display:grid;place-items:center;padding:0}
+  .play:hover{border-color:var(--accent)}
+  .play svg{width:12px;height:12px;fill:currentColor}
+  td.playing .play{background:var(--accent);border-color:var(--accent);color:#fff}
+  .track{flex:1;min-width:40px;height:4px;border-radius:2px;background:var(--line);overflow:hidden;cursor:pointer}
+  .track i{display:block;height:100%;width:0;background:var(--accent)}
+  .dur{font-family:var(--mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+  .missing{font-size:12px;color:var(--faint)}
+
+  .keys{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.9}
+  .keys kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:5px;padding:0 5px;background:var(--panel);color:var(--ink)}
+  .drop{position:fixed;inset:0;background:color-mix(in srgb,var(--accent) 12%,var(--bg));
+    display:none;place-items:center;pointer-events:none;z-index:10}
+  .drop.show{display:grid}
+  .drop div{border:2px dashed var(--accent);border-radius:18px;padding:36px 54px;font-weight:600;
+    color:var(--accent);background:var(--panel);font-size:17px}
+  @media (max-width:640px){
+    .wrap{padding:18px 16px 50px}
+    col.ccap{width:160px}
+  }
+</style>
+</head>
+<body>
+<div class="drop" id="drop"><div>出力フォルダをここにドロップ</div></div>
+<div class="wrap">
+  <div class="head">
+    <h1>🎚️ モデル比較 聞き比べ</h1>
+    <span class="count" id="count" hidden></span>
+  </div>
+  <p class="sub">縦にキャプション、横にモデルを並べて聞き比べる。横に聴けば同じキャプションのモデル差、縦に聴けば同じモデルのキャプション差がわかる（1モデルだけの一覧は <a href="viewer.html">viewer.html</a>）</p>
+  <div class="banner" id="banner" hidden></div>
+  <div class="load" id="load">
+    <button class="btn primary" id="pickFolder">出力フォルダを選ぶ</button>
+  </div>
+  <div class="empty" id="empty">
+    <b>outputs/models.json を探しています…</b>
+    <code>batch_gen.py --models v3,v4.1,...</code> の出力先で <code>python3 -m http.server</code> を立てると自動表示します（別名のフォルダは <code>compare.html?dir=フォルダ名</code>）。<br>
+    直接開いた場合は、出力フォルダ（models.json を含む）をドロップするか、上のボタンから選択してください
+  </div>
+
+  <div id="main" hidden>
+    <p class="meta" id="meta"></p>
+    <div class="bar-top">
+      <div class="chips" id="chips"></div>
+      <button class="btn stopall" id="stopBtn">■ 停止</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="keys">
+      キーボード: <kbd>←</kbd><kbd>→</kbd> モデル · <kbd>↑</kbd><kbd>↓</kbd> キャプション（移動すると再生） ·
+      <kbd>Space</kbd> 再生/停止 · <kbd>R</kbd> この行を横に連続再生 · <kbd>C</kbd> この列を縦に連続再生
+    </p>
+  </div>
+</div>
+<input id="folderInput" type="file" webkitdirectory hidden>
+<script>
+  const $=s=>document.querySelector(s);
+  const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fn=n=>String(n).replace(/^.*[\/\\]/,'');
+  const PLAY='<svg viewBox="0 0 12 12"><path d="M3 1.5v9l7.5-4.5z"/></svg>';
+  const STOP='<svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/></svg>';
+
+  let data=null;     // {text, captions:[{file,caption,text,tag}], models:[{id,checkpoint,dir,files,failed}]}
+  let urlOf=null;    // (model, file) => url | null
+  let tag='';
+  let cur={r:0,c:0}; // 表示中の行・列の位置
+  const audio=new Audio();
+  let playing=null;  // {r, c}
+  let queue=[];
+
+  // ---- データ読み込み ----
+  function normalize(m){
+    const caps=(m.captions||[]).map((o,i)=>({file:fn(o.file||o.name||`voice_${String(i+1).padStart(2,'0')}.wav`),
+      caption:o.caption||'',text:o.text||'',tag:o.tag||''}));
+    const models=(m.models||[]).map(x=>({id:String(x.id),checkpoint:x.checkpoint||'',dir:x.dir||x.id,
+      files:new Set((x.files||caps.map(c=>c.file)).map(fn)),failed:new Set((x.failed||[]).map(fn))}));
+    return {text:m.text||'',captions:caps,models};
+  }
+  function start(manifest,resolver,label){
+    data=normalize(manifest);
+    if(!data.models.length||!data.captions.length){alert('models.json にモデルかキャプションがありません');return;}
+    urlOf=resolver; tag=''; cur={r:0,c:0};
+    const b=$('#banner'); b.hidden=false; b.textContent=label;
+    $('#empty').hidden=true; $('#load').hidden=true; $('#main').hidden=false;
+    render();
+  }
+  // ?dir=outputs-emotions のように読み込むフォルダを選べる（このページからの相対パスのみ）
+  function outDir(){
+    const d=(new URLSearchParams(location.search).get('dir')||'outputs').replace(/^\/+|\/+$/g,'');
+    return d&&/^[\w.\-\/]+$/.test(d)&&!d.split('/').includes('..')?d:'outputs';
+  }
+  async function autoload(){
+    const dir=outDir();
+    $('#empty b').textContent=`${dir}/models.json を探しています…`;
+    try{
+      const res=await fetch(`${dir}/models.json`,{cache:'no-store'});
+      if(!res.ok) throw 0;
+      const m=await res.json();
+      const enc=dir.split('/').map(encodeURIComponent).join('/');
+      start(m,(model,file)=>model.files.has(file)?`${enc}/${encodeURIComponent(model.dir)}/${encodeURIComponent(file)}`:null,
+        `${dir}/models.json から自動読み込み（${(m.models||[]).length}モデル × ${(m.captions||[]).length}キャプション）`);
+    }catch(e){ /* サーバー経由でない/未生成 → 選択・ドロップ待ち */ }
+  }
+  // パス付きファイル一覧（フォルダ選択・ドロップ）から読み込む
+  async function fromFiles(entries){
+    const mf=entries.filter(e=>fn(e.path)==='models.json').sort((a,b)=>a.path.length-b.path.length)[0];
+    if(!mf){alert('models.json が見つかりませんでした。batch_gen.py --models の出力フォルダを選んでください');return;}
+    const root=mf.path.slice(0,-'models.json'.length);
+    let m; try{m=JSON.parse(await mf.file.text());}catch(e){alert('models.json を読めませんでした');return;}
+    const byPath=new Map(entries.map(e=>[e.path,e.file]));
+    const urls=new Map();
+    start(m,(model,file)=>{
+      const k=`${root}${model.dir}/${file}`;
+      if(!byPath.has(k)) return null;
+      if(!urls.has(k)) urls.set(k,URL.createObjectURL(byPath.get(k)));
+      return urls.get(k);
+    },`フォルダから読み込み（${(m.models||[]).length}モデル）`);
+  }
+  async function walk(entry,prefix,out){
+    if(entry.isFile){out.push({path:prefix+entry.name,file:await new Promise((r,j)=>entry.file(r,j))});return;}
+    const reader=entry.createReader();
+    for(;;){
+      const batch=await new Promise((r,j)=>reader.readEntries(r,j));
+      if(!batch.length) break;
+      for(const e of batch) await walk(e,prefix+entry.name+'/',out);
+    }
+  }
+
+  // ---- 描画 ----
+  const rows=()=>data.captions.filter(c=>!tag||c.tag===tag);
+  const fmt=s=>isFinite(s)?`${s.toFixed(1)}s`:'';
+  function render(){
+    stop();
+    $('#count').hidden=false;
+    $('#count').textContent=`${data.models.length} モデル × ${data.captions.length} キャプション`;
+    // 全キャプションが個別の読み上げ文を持つなら既定文は使われないので出さない
+    $('#meta').innerHTML=data.text&&data.captions.some(c=>!c.text)?`既定の読み上げ文: <q>${esc(data.text)}</q>`:'';
+    const tags=[...new Set(data.captions.map(c=>c.tag).filter(Boolean))];
+    $('#chips').innerHTML=tags.length?['',...tags].map(t=>
+      `<button class="chip" data-tag="${esc(t)}" aria-pressed="${t===tag}">${t?esc(t):'すべて'}</button>`).join(''):'';
+    const rs=rows();
+    cur.r=Math.min(cur.r,Math.max(rs.length-1,0));
+    // 全行の読み上げ文が同じなら、表の上に一度だけ出す
+    const texts=[...new Set(rs.map(c=>c.text).filter(Boolean))];
+    const sharedText=texts.length===1&&rs.every(c=>c.text===texts[0])?texts[0]:'';
+    if(sharedText) $('#meta').innerHTML=`読み上げ文（全キャプション共通）: <q>${esc(sharedText)}</q>`;
+    const head=`<tr><th class="corner">キャプション ＼ モデル</th>${data.models.map((m,c)=>`
+      <th data-c="${c}"><span class="mname">${esc(m.id)}</span><span class="mck" title="${esc(m.checkpoint)}">${esc(m.checkpoint.replace(/^Aratako\//,''))}</span>
+        <button class="seq" data-act="col" data-c="${c}" title="このモデルでキャプションを上から順に再生">▼ 縦に再生</button></th>`).join('')}</tr>`;
+    const body=rs.map((cap,r)=>{
+      const idx=data.captions.indexOf(cap)+1;
+      const say=!sharedText&&cap.text&&cap.text!==data.text?`<div class="say">読み上げ: ${esc(cap.text)}</div>`:'';
+      return `<tr data-r="${r}"><th>
+        <div class="hrow"><span class="n">${String(idx).padStart(2,'0')}</span>
+          <div class="txt"><div class="cap">${cap.tag?`<span class="tag">${esc(cap.tag)}</span>`:''}${esc(cap.caption)||'<i>(キャプションなし)</i>'}</div>${say}
+            <button class="seq" data-act="row" data-r="${r}" title="このキャプションをモデル順に再生">▶ 横に再生</button></div>
+        </div></th>${data.models.map((m,c)=>cell(cap,m,r,c)).join('')}</tr>`;
+    }).join('');
+    const cols=`<colgroup><col class="ccap">${data.models.map(()=>'<col>').join('')}</colgroup>`;
+    $('#grid').innerHTML=rs.length?`<table style="min-width:${300+data.models.length*170}px">${cols}<thead>${head}</thead><tbody>${body}</tbody></table>`
+      :'<div class="empty">この条件に当てはまるキャプションはありません</div>';
+    markCur();
+    loadDurations(rs);
+  }
+  function cell(cap,m,r,c){
+    const url=urlOf(m,cap.file);
+    if(!url) return `<td data-r="${r}" data-c="${c}"><span class="missing">${m.failed.has(cap.file)?'生成失敗':'未生成'}</span></td>`;
+    return `<td data-r="${r}" data-c="${c}"><div class="player">
+      <button class="play" data-act="play" aria-label="${esc(m.id)} / ${esc(cap.tag||cap.file)} を再生">${PLAY}</button>
+      <div class="track" data-act="seek"><i></i></div><span class="dur"></span></div></td>`;
+  }
+  // 各音声の長さを表示する。WAV はヘッダだけ読んで計算し（先頭を読んだら打ち切る）、
+  // それ以外は音声要素のメタデータから取る。同時に読むのは 3 件まで
+  async function wavSeconds(url){
+    const res=await fetch(url,{headers:{Range:'bytes=0-4095'}});
+    const reader=res.body.getReader(); let buf=new Uint8Array(0);
+    while(buf.length<4096){ const {done,value}=await reader.read(); if(done) break;
+      const b=new Uint8Array(buf.length+value.length); b.set(buf); b.set(value,buf.length); buf=b; }
+    reader.cancel().catch(()=>{});
+    const v=new DataView(buf.buffer), tag=o=>String.fromCharCode(...buf.slice(o,o+4));
+    if(buf.length<12||tag(0)!=='RIFF'||tag(8)!=='WAVE') throw 0;
+    let byteRate=0;
+    for(let o=12;o+8<=buf.length;){
+      const id=tag(o), size=v.getUint32(o+4,true);
+      if(id==='fmt ') byteRate=v.getUint32(o+16,true);
+      if(id==='data'&&byteRate) return size/byteRate;
+      o+=8+size+(size&1);
+    }
+    throw 0;
+  }
+  function mediaSeconds(url){
+    return new Promise(ok=>{
+      const a=new Audio(); a.preload='metadata';
+      const done=()=>{const d=a.duration; a.removeAttribute('src'); a.load(); ok(d);};
+      a.addEventListener('loadedmetadata',done,{once:true});
+      a.addEventListener('error',done,{once:true});
+      a.src=url;
+    });
+  }
+  let probeGen=0;
+  function loadDurations(rs){
+    const gen=++probeGen;
+    const jobs=[];
+    rs.forEach((cap,r)=>data.models.forEach((m,c)=>{const url=urlOf(m,cap.file); if(url) jobs.push({r,c,url,wav:/\.wav$/i.test(cap.file)});}));
+    const worker=async()=>{
+      for(let j;(j=jobs.shift())&&gen===probeGen;){
+        let sec=NaN;
+        try{ sec=j.wav?await wavSeconds(j.url):await mediaSeconds(j.url); }
+        catch(e){ sec=await mediaSeconds(j.url); }
+        const el=td(j.r,j.c)?.querySelector('.dur');
+        if(el&&gen===probeGen) el.textContent=fmt(sec);
+      }
+    };
+    for(let i=0;i<3;i++) worker();
+  }
+  const td=(r,c)=>document.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+  function markCur(){
+    document.querySelectorAll('td.cur').forEach(e=>e.classList.remove('cur'));
+    document.querySelectorAll('tr.hl').forEach(e=>e.classList.remove('hl'));
+    td(cur.r,cur.c)?.classList.add('cur');
+    document.querySelector(`tbody tr[data-r="${cur.r}"]`)?.classList.add('hl');
+  }
+
+  // ---- 再生 ----
+  function setUI(on){
+    if(!playing) return;
+    const el=td(playing.r,playing.c); if(!el) return;
+    el.classList.toggle('playing',on);
+    const b=el.querySelector('.play'); if(b) b.innerHTML=on?STOP:PLAY;
+    if(!on){const t=el.querySelector('.track i'); if(t) t.style.width='0';}
+  }
+  function play(r,c,fromQueue){
+    if(!fromQueue) queue=[];
+    const cap=rows()[r], m=data.models[c];
+    const url=cap&&m&&urlOf(m,cap.file);
+    if(!url) return next();
+    if(!fromQueue&&playing&&playing.r===r&&playing.c===c&&!audio.paused){stop();return;}
+    setUI(false);
+    playing={r,c}; cur={r,c}; markCur();
+    audio.src=url; audio.currentTime=0; audio.play().catch(()=>{});
+    setUI(true);
+    td(r,c)?.scrollIntoView({block:'nearest',inline:'nearest'});
+  }
+  function stop(){ queue=[]; audio.pause(); setUI(false); playing=null; }
+  function next(){ setUI(false); playing=null; const n=queue.shift(); if(n) play(n.r,n.c,true); }
+  function playSeq(list){
+    list=list.filter(p=>urlOf(data.models[p.c],rows()[p.r].file));
+    if(!list.length) return;
+    stop(); const first=list.shift(); queue=list; play(first.r,first.c,true);
+  }
+  const playRow=r=>playSeq(data.models.map((_,c)=>({r,c})));
+  const playCol=c=>playSeq(rows().map((_,r)=>({r,c})));
+  audio.addEventListener('ended',next);
+  audio.addEventListener('timeupdate',()=>{
+    if(!playing||!audio.duration) return;
+    const t=td(playing.r,playing.c)?.querySelector('.track i');
+    if(t) t.style.width=`${audio.currentTime/audio.duration*100}%`;
+  });
+
+  // ---- 操作 ----
+  $('#grid').addEventListener('click',e=>{
+    const el=e.target.closest('[data-act]'); if(!el) return;
+    const act=el.dataset.act;
+    if(act==='row') return playRow(+el.dataset.r);
+    if(act==='col') return playCol(+el.dataset.c);
+    const cellEl=el.closest('td'); const r=+cellEl.dataset.r, c=+cellEl.dataset.c;
+    if(act==='play') play(r,c);
+    else if(act==='seek'){
+      if(!(playing&&playing.r===r&&playing.c===c)) play(r,c);
+      const box=el.getBoundingClientRect(); const ratio=(e.clientX-box.left)/box.width;
+      const go=()=>{audio.currentTime=ratio*audio.duration;};
+      audio.duration?go():audio.addEventListener('loadedmetadata',go,{once:true});
+    }
+  });
+  $('#chips').addEventListener('click',e=>{const c=e.target.closest('.chip'); if(!c) return; tag=c.dataset.tag; cur={r:0,c:cur.c}; render();});
+  $('#stopBtn').addEventListener('click',stop);
+  window.addEventListener('keydown',e=>{
+    if(!data||e.metaKey||e.ctrlKey||e.altKey||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    const nr=rows().length, nc=data.models.length; if(!nr) return;
+    const k=e.key;
+    if(k==='ArrowRight'||k==='ArrowLeft'){ play(cur.r,Math.max(0,Math.min(nc-1,cur.c+(k==='ArrowRight'?1:-1)))); }
+    else if(k==='ArrowDown'||k==='ArrowUp'){ play(Math.max(0,Math.min(nr-1,cur.r+(k==='ArrowDown'?1:-1))),cur.c); }
+    else if(k===' '){ playing&&!audio.paused?stop():play(cur.r,cur.c); }
+    else if(k==='r'||k==='R'){ playRow(cur.r); }
+    else if(k==='c'||k==='C'){ playCol(cur.c); }
+    else return;
+    e.preventDefault();
+  });
+
+  // ---- フォルダ選択・ドロップ ----
+  $('#pickFolder').addEventListener('click',()=>$('#folderInput').click());
+  $('#folderInput').addEventListener('change',e=>{
+    fromFiles([...e.target.files].map(f=>({path:f.webkitRelativePath||f.name,file:f}))); e.target.value='';
+  });
+  let dragN=0; const drop=$('#drop');
+  window.addEventListener('dragenter',e=>{e.preventDefault();dragN++;drop.classList.add('show');});
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('dragleave',e=>{e.preventDefault();if(--dragN<=0)drop.classList.remove('show');});
+  window.addEventListener('drop',async e=>{
+    e.preventDefault(); dragN=0; drop.classList.remove('show');
+    const entries=[...e.dataTransfer.items].map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);
+    const out=[]; for(const en of entries) await walk(en,'',out);
+    if(out.length) fromFiles(out);
+  });
+
+  autoload();
+</script>
+</body>
+</html>

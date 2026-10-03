@@ -73,7 +73,7 @@ from google.colab import files; files.download('voices.zip')
 - **The read-aloud text (`--text`) defaults to a neutral sentence.** If you later reuse a voice in a video, this avoids baking a claim or promo line into the demo audio that could contradict things afterward. Override with `--text "..."`.
 - **Reference-free generation from the caption alone (`--no-ref`)** — pure VoiceDesign. All parameters match the defaults in the official `infer.py` argparse (`cfg 3.0/3.0`, `guidance=independent`, etc.; `num_steps` follows the checkpoint default: 40 for regular models, 4 for MeanFlow models).
 - If an entry in captions.json has a `"text"` field, that entry uses it as its read-aloud text.
-- **Resume-friendly**: existing wavs are skipped, so a re-run continues where it stopped.
+- **Resume-friendly**: existing wavs are skipped, so a re-run continues where it stopped. Pointing it at a folder made by a different model stops with an error, so voices from two models never mix.
 - The generation API is the official `infer.py` (`InferenceRuntime` / `SamplingRequest`). To use the CLI directly:
 
 ```bash
@@ -125,6 +125,9 @@ python3 -m http.server 8000
 
 Each voice appears with its caption, so you can play through and pick the one you like. Everything runs locally in the browser; the audio is never uploaded anywhere.
 (If you open `viewer.html` directly without a server, just drop the audio + `captions.json` onto the page to get the same view.)
+
+- **Which model made it**: above the list, the page shows the model that generated the voices, e.g. "生成モデル: v3 (Aratako/Irodori-TTS-600M-v3-VoiceDesign)". It reads the `generation.json` that `batch_gen.py` writes into the output folder. Older output without this record shows "記録なし" (no record); if you know the model, drop in a `generation.json` such as `{"id": "v3", "checkpoint": "Aratako/Irodori-TTS-600M-v3-VoiceDesign"}`.
+- **Multi-model output** (`--models`) gets tabs at the top to switch between models, one list per model. Use `viewer.html?dir=outputs-emotions` for a folder with another name, and add `&model=v4.1` to open a specific model.
 
 ## [3'] Compare models (`compare.html`)
 

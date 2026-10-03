@@ -27,6 +27,15 @@
   .banner{font-size:12.5px;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);
     border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);border-radius:8px;padding:7px 11px;margin-bottom:16px}
   .load{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .tab{font:inherit;font-size:13px;padding:6px 13px;border-radius:999px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+  .tab:hover{border-color:var(--accent)}
+  .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .model{font-size:13.5px;margin:0 0 16px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .model b{font-weight:650}
+  .model code{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .model.unknown{color:var(--muted)}
   .btn{font:inherit;font-size:13px;padding:8px 14px;border-radius:9px;cursor:pointer;
     background:var(--panel);border:1px solid var(--line);color:var(--ink)}
   .btn:hover{border-color:var(--accent)}
@@ -64,6 +73,8 @@
   </div>
   <p class="sub">VoiceDesignで作った声を、キャプションと一緒に並べて聞き比べる（アバターの声探し用 · 複数モデルの比較は <a href="compare.html">compare.html</a>）</p>
   <div class="banner" id="banner" hidden></div>
+  <div class="tabs" id="tabs" role="tablist" aria-label="生成モデル" hidden></div>
+  <p class="model" id="model" hidden></p>
   <div class="load">
     <button class="btn primary" id="pickFiles">音声を選ぶ</button>
     <button class="btn" id="pickFolder">フォルダを選ぶ</button>
@@ -101,46 +112,113 @@
       </li>`).join('');
   }
 
-  // --- outputs/ を自動読み込み（http server 経由のとき） ---
+  // --- 生成モデルの表示 ---
+  // 複数モデルの出力（models.json）はタブで切り替え、1モデルの出力は generation.json から表示する
+  let multi=null;   // {models:[{id,checkpoint,...}], listFor:(model)=>items}
+  const parseCaptions=d=>Array.isArray(d)
+    ? d.map(o=>({file:fn(o.file||o.name||o.filename||''),caption:o.caption||o.text||''}))
+    : Object.entries(d).map(([k,v])=>({file:fn(k),caption:typeof v==='string'?v:(v.caption||'')}));
+  const byName=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true});
+  function showModel(info){
+    const el=$('#model'); el.hidden=false;
+    el.classList.toggle('unknown',!info);
+    el.innerHTML=info
+      ?`生成モデル: <b>${esc(info.id||info.checkpoint)}</b>${info.checkpoint?`<code>${esc(info.checkpoint)}</code>`:''}`
+      :'生成モデル: 記録なし（このフォルダには generation.json / models.json がありません）';
+  }
+  function selectModel(id,pushUrl){
+    const m=multi.models.find(x=>x.id===id)||multi.models[0];
+    $('#tabs').querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.id===m.id));
+    showModel(m);
+    setItems(multi.listFor(m));
+    if(pushUrl){ try{const u=new URL(location.href); u.searchParams.set('model',m.id); history.replaceState(null,'',u);}catch(e){} }
+  }
+  function startMulti(manifest,urlOf,initial){
+    const caps=parseCaptions(manifest.captions||[]);
+    const models=(manifest.models||[]).filter(m=>m&&m.id);
+    if(!models.length) return false;
+    multi={models,listFor:m=>{
+      const files=new Set((m.files||caps.map(c=>c.file)).map(fn));
+      return caps.filter(c=>c.file&&files.has(c.file)).map(c=>({name:c.file,caption:c.caption,url:urlOf(m,c.file)}))
+        .filter(it=>it.url).sort(byName);
+    }};
+    $('#tabs').hidden=false;
+    $('#tabs').innerHTML=models.map(m=>
+      `<button class="tab" role="tab" data-id="${esc(m.id)}" title="${esc(m.checkpoint||'')}">${esc(m.id)}</button>`).join('');
+    selectModel(initial,false);
+    return true;
+  }
+  $('#tabs').addEventListener('click',e=>{const t=e.target.closest('.tab'); if(t) selectModel(t.dataset.id,true);});
+  function resetModel(){ multi=null; $('#tabs').hidden=true; $('#tabs').innerHTML=''; $('#model').hidden=true; }
+
+  // ?dir=outputs-emotions のように読み込むフォルダを選べる（このページからの相対パスのみ）
+  function outDir(){
+    const d=(new URLSearchParams(location.search).get('dir')||'outputs').replace(/^\/+|\/+$/g,'');
+    return d&&/^[\w.\-\/]+$/.test(d)&&!d.split('/').includes('..')?d:'outputs';
+  }
+  const getJson=async url=>{const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw 0; return r.json();};
+
+  // --- 出力フォルダを自動読み込み（http server 経由のとき） ---
   async function autoload(){
-    try{
-      const res=await fetch('outputs/captions.json',{cache:'no-store'});
-      if(!res.ok) throw 0;
-      const data=await res.json();
-      const arr=Array.isArray(data)
-        ? data.map(o=>({file:fn(o.file||o.name||o.filename||''),caption:o.caption||o.text||''}))
-        : Object.entries(data).map(([k,v])=>({file:fn(k),caption:typeof v==='string'?v:(v.caption||'')}));
-      const list=arr.filter(o=>o.file).map(o=>({name:o.file,caption:o.caption,url:'outputs/'+encodeURIComponent(o.file)}));
-      list.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
-      if(list.length){
-        const b=$('#banner'); b.hidden=false; b.textContent=`outputs/ から自動読み込み（${list.length}件）`;
-        setItems(list);
+    const dir=outDir(), enc=dir.split('/').map(encodeURIComponent).join('/');
+    $('#empty b').textContent=`${dir}/ を自動で探しています…`;
+    const banner=t=>{const b=$('#banner'); b.hidden=false; b.textContent=t;};
+    try{ // 複数モデルの出力
+      const m=await getJson(`${dir}/models.json`);
+      const url=(model,file)=>`${enc}/${encodeURIComponent(model.dir||model.id)}/${encodeURIComponent(file)}`;
+      if(startMulti(m,url,new URLSearchParams(location.search).get('model'))){
+        banner(`${dir}/ から自動読み込み（${m.models.length}モデル。タブで切り替え）`);
+        $('#banner').insertAdjacentHTML('beforeend',` · 横並びの比較は <a href="compare.html?dir=${encodeURIComponent(dir)}">compare.html</a>`);
+        return;
       }
-    }catch(e){
-      // --models で複数モデルを生成した出力なら比較画面へ案内
-      try{
-        const r=await fetch('outputs/models.json',{cache:'no-store'});
-        if(r.ok){ const b=$('#banner'); b.hidden=false; $('#empty').hidden=true;
-          b.innerHTML='outputs/ は複数モデルの比較用の出力です → <a href="compare.html">compare.html</a> で聞き比べ'; }
-      }catch(_){ /* サーバー経由でない/未生成 → ドロップ待ち */ }
-    }
+    }catch(e){}
+    try{ // 1モデルの出力
+      const list=parseCaptions(await getJson(`${dir}/captions.json`)).filter(o=>o.file)
+        .map(o=>({name:o.file,caption:o.caption,url:`${enc}/${encodeURIComponent(o.file)}`})).sort(byName);
+      if(!list.length) return;
+      let info=null; try{ info=await getJson(`${dir}/generation.json`); }catch(e){}
+      // 生成済みファイルの記録があれば、まだ作っていない（失敗した）キャプションは出さない
+      const shown=info&&Array.isArray(info.files)?list.filter(it=>info.files.map(fn).includes(it.name)):list;
+      banner(`${dir}/ から自動読み込み（${shown.length}件）`);
+      showModel(info); setItems(shown);
+    }catch(e){ /* サーバー経由でない/未生成 → ドロップ待ち */ }
   }
 
   // --- 手動読み込み（ドロップ/選択） ---
   async function add(fileList){
     const files=[...fileList];
-    const cap={};
+    const path=f=>f.webkitRelativePath||f.name;
+    const readJson=async f=>{try{return JSON.parse(await f.text());}catch(e){return null;}};
+    // フォルダ選択で models.json を含むなら複数モデルの出力として開く
+    const mf=files.filter(f=>fn(f.name)==='models.json').sort((a,b)=>path(a).length-path(b).length)[0];
+    if(mf){
+      const m=await readJson(mf); const root=path(mf).slice(0,-'models.json'.length);
+      const byPath=new Map(files.map(f=>[path(f),f])), urls=new Map();
+      const urlOf=(model,file)=>{
+        const k=`${root}${model.dir||model.id}/${file}`;
+        if(!byPath.has(k)) return null;
+        if(!urls.has(k)) urls.set(k,URL.createObjectURL(byPath.get(k)));  // タブを切り替えても作り直さない
+        return urls.get(k);
+      };
+      if(m&&startMulti(m,urlOf,null)){
+        $('#banner').hidden=true; return;
+      }
+    }
+    resetModel();
+    const cap={}; let info=null;
     for(const f of files.filter(f=>/\.json$/i.test(f.name))){
-      try{const d=JSON.parse(await f.text());
-        if(Array.isArray(d)) d.forEach(o=>{const k=o.file||o.name||o.filename;if(k)cap[fn(k)]=o.caption||o.text||'';});
-        else Object.entries(d).forEach(([k,v])=>cap[fn(k)]=typeof v==='string'?v:(v.caption||''));
-      }catch(e){ alert('captions.json を読めませんでした'); }
+      if(fn(f.name)==='generation.json'){ info=await readJson(f); continue; }
+      if(fn(f.name)==='models.json') continue;
+      const d=await readJson(f);
+      if(!d){ alert(`${fn(f.name)} を読めませんでした`); continue; }
+      parseCaptions(d).forEach(o=>{ if(o.file) cap[o.file]=o.caption; });
     }
     for(const f of files.filter(f=>/\.txt$/i.test(f.name))) cap[base(f.name)]=(await f.text()).trim();
     const audios=files.filter(f=>AUDIO_RE.test(f.name));
     if(!audios.length){ if(!items.length) alert('音声ファイルが見つかりませんでした'); return; }
     audios.sort((a,b)=>fn(a.name).localeCompare(fn(b.name),undefined,{numeric:true}));
     $('#banner').hidden=true;
+    showModel(info);
     setItems(audios.map(f=>({name:fn(f.name),url:URL.createObjectURL(f),caption:cap[fn(f.name)]??cap[base(f.name)]??''})));
   }
 

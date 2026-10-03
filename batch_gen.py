@@ -17,6 +17,7 @@ Irodori VoiceDesign で captions.json の全ペルソナを「モデル1回ロ�
   - 指定できる短縮名は MODEL_ALIASES を参照。HF の repo id（owner/repo または
     owner/repo/subfolder）をそのまま書いてもよい。
   - --models を付けない場合は従来どおり --checkpoint の1モデルを <outdir> 直下に出力する。
+    使ったモデルは <outdir>/generation.json に記録され、viewer.html の見出しに表示される。
 
 公式 infer.py の Python API（InferenceRuntime / SamplingRequest）を main() の構築手順どおりに
 再現している。全パラメータは infer.py の argparse 既定値に一致（cfg 3.0/3.0,
@@ -208,9 +209,23 @@ def main():
 
     if not args.models:
         # 従来どおり: 1モデルを outdir 直下へ。viewer.html にそのまま渡せるよう captions.json を同梱
-        generate(items, checkpoint=args.checkpoint, out=outdir, args=args,
-                 precision=resolve_precision(args.precision, args.checkpoint))
+        precision = resolve_precision(args.precision, args.checkpoint)
+        gen_path = outdir / "generation.json"
+        prev = json.loads(gen_path.read_text(encoding="utf-8")) if gen_path.exists() else {}
+        if prev and prev.get("checkpoint") != args.checkpoint:
+            # 既存の wav はスキップされるので、続けると記録と中身が食い違う
+            raise SystemExit(f"[error] {outdir} は {prev.get('checkpoint')} の出力です。"
+                             "別のモデルで作るときは --outdir を分けてください")
+        result = generate(items, checkpoint=args.checkpoint, out=outdir, args=args, precision=precision)
         shutil.copyfile(caps, outdir / "captions.json")
+        # どのモデルで作った声かを viewer.html で表示できるよう記録しておく
+        alias = next((k for k, v in MODEL_ALIASES.items() if v == args.checkpoint), None)
+        if prev.get("checkpoint") == args.checkpoint:
+            result["seeds"] = {**prev.get("seeds", {}), **result["seeds"]}  # resume 時に過去の seed を残す
+        gen_path.write_text(json.dumps({
+            "id": alias or resolve_model(args.checkpoint)[0], "checkpoint": args.checkpoint,
+            "precision": precision, "num_steps": args.num_steps or "default", "text": args.text, **result,
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return
 
     models = [resolve_model(s) for s in args.models.split(",") if s.strip()]

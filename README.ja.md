@@ -73,7 +73,7 @@ from google.colab import files; files.download('voices.zip')
 - **読み上げ文（`--text`）は中立文が既定**。将来この声を動画等で使うとき、デモ文に性能主張や宣伝が焼き込まれて後から矛盾しないようにするため。変えたいときは `--text "..."`。
 - **参照音声なし（`--no-ref`）でキャプションだけから作る** VoiceDesign 純粋生成。全パラメータは公式 `infer.py` の argparse 既定値に一致（`cfg 3.0/3.0`, `guidance=independent` 等。`num_steps` はチェックポイント既定で、通常モデルは 40、MeanFlow モデルは 4）。
 - captions.json の各要素に `"text"` があれば、その件だけ読み上げ文を差し替えます。
-- **resume 対応**: 既存の wav はスキップするので、中断しても再実行で続きから。
+- **resume 対応**: 既存の wav はスキップするので、中断しても再実行で続きから。別のモデルの出力が入ったフォルダを指定するとエラーで止まります（声が混ざらないように）。
 - 生成 API の実体は公式 `infer.py`（`InferenceRuntime` / `SamplingRequest`）。CLI を直接使う場合:
 
 ```bash
@@ -125,6 +125,9 @@ python3 -m http.server 8000
 
 各声がキャプション付きで並ぶので、再生して好みの声を探します。すべてローカル・ブラウザ内で完結し、音声はどこにも送信されません。
 （サーバーを立てずに `viewer.html` を直接開いた場合は、音声＋`captions.json` を画面にドロップすれば同じように表示できます）
+
+- **生成モデルの表示**: 一覧の上に「生成モデル: v3（Aratako/Irodori-TTS-600M-v3-VoiceDesign）」のように、どのモデルで作った声かを出します。`batch_gen.py` が出力フォルダに書く `generation.json` を読んでいます。この記録がない古い出力では「記録なし」と表示されます（使ったモデルが分かっていれば、`{"id": "v3", "checkpoint": "Aratako/Irodori-TTS-600M-v3-VoiceDesign"}` のような `generation.json` を手で置けば表示されます）。
+- **複数モデルの出力**（`--models`）を開くと、上部のタブでモデルを切り替えて1モデルずつ一覧できます。別名のフォルダは `viewer.html?dir=outputs-emotions`、モデルまで指定するなら `&model=v4.1` を付けます。
 
 ## [3'] モデル比較（`compare.html`）
 

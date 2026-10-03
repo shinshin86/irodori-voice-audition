@@ -1,24 +1,12 @@
 # irodori-voice-audition
 
+![Illustration of three women around a studio microphone](assets/irodori-voice-audition-logo.png)
+
 **English** | [日本語](README.ja.md)
 
 > A small toolkit to batch-generate many persona voices with Irodori-TTS VoiceDesign, then audition them side-by-side with captions to pick a voice for your avatar.
 
 Made for the case where you don't yet have a concrete image of the voice you want. Instead of putting the target into words first, you generate a wide spread of candidates, listen through them, and let your ear find the direction.
-
-## Flow
-
-```
-[1] captions.json (voice descriptions for many personas)
-        |  <- (re)generate with prompts/persona-captions-prompt.md
-        v
-[2] Generate voice_01..NN.wav with Irodori VoiceDesign on Colab (GPU)
-        |  <- batch_gen.py (recommended, fast) / colab_generate.py (simple)
-        v
-[3] Open outputs/ in viewer.html, audition with captions, pick your voice
-```
-
-You can also generate the same captions with several Irodori models and audition them in a **caption x model** grid (`batch_gen.py --models` -> `compare.html`).
 
 ## What's inside
 
@@ -35,15 +23,27 @@ You can also generate the same captions with several Irodori models and audition
 ## Requirements
 
 - Python 3.10+ and a GPU (needed for Irodori VoiceDesign inference; **a Google Colab GPU runtime is recommended**)
-- [Irodori-TTS](https://github.com/Aratako/Irodori-TTS) (default `Aratako/Irodori-TTS-600M-v3-VoiceDesign`; see [2'] for the other supported models)
+- [Irodori-TTS](https://github.com/Aratako/Irodori-TTS) (default `Aratako/Irodori-TTS-600M-v3-VoiceDesign`; see [Generate with several models](#generate-with-several-models---models) for the other supported models)
 - `viewer.html` runs in any modern browser (a local server is optional)
 
-## [1] Prepare captions
+## Usage
+
+Three steps overall:
+
+1. **[Step 1. Prepare captions](#step-1-prepare-captions)** — get `captions.json` (voice descriptions for many personas); (re)generate it with `prompts/persona-captions-prompt.md`
+2. **[Step 2. Batch-generate on Colab](#step-2-batch-generate-on-colab-gpu-runtime)** — generate `voice_01..NN.wav` with Irodori VoiceDesign on a Colab GPU (`batch_gen.py` recommended & fast / `colab_generate.py` simple)
+3. **[Step 3. Audition](#step-3-audition)** — open `outputs/` in `viewer.html`, listen through with captions, pick your voice
+
+> 💡 Just want to try it? Skip Step 1 (the bundled `captions.json` works as-is) and start from Step 2.
+
+You can also generate the same captions with several Irodori models and compare them. Generate them with "[Generate with several models](#generate-with-several-models---models)" in Step 2, then listen in a **captions as rows / models as columns** grid with "[Compare models](#compare-models-comparehtml)" in Step 3.
+
+### Step 1. Prepare captions
 
 The starter `captions.json` works as-is. To regenerate it or change the count, hand
 `prompts/persona-captions-prompt.md` to an LLM (the more you vary gender, age, timbre, speaking style and mood, the more likely you are to stumble on a good voice while auditioning).
 
-## [2] Batch-generate on Colab (GPU runtime)
+### Step 2. Batch-generate on Colab (GPU runtime)
 
 Select a **GPU runtime** on Colab and run the cells in order. **`batch_gen.py` (loads the model once) is recommended.**
 Measured (Colab L4): dependency sync a few minutes -> 50 voices in **~107s** (one model load + ~2s per item).
@@ -83,10 +83,10 @@ uv run --no-sync python infer.py \
   --output-wav outputs/voice_01.wav
 ```
 
-### Simple `colab_generate.py`
+#### Simple `colab_generate.py`
 A fallback for environments where `batch_gen.py` doesn't work. It calls `infer.py` once per caption, reloading the model each time, so 50 items are slow (tens of seconds each). Output is the same.
 
-## [2'] Generate with several models (`--models`)
+#### Generate with several models (`--models`)
 
 Pass a comma-separated list to `--models` and the script loads each model in turn and generates the same captions. Output goes to `<--outdir>/<model>/`, and the list is written to `<--outdir>/models.json` (in the example below, `outputs-emotions/v3/` and so on).
 
@@ -131,7 +131,7 @@ Available models:
 - If one model fails to load (e.g. out of VRAM), the remaining models still run. Re-running skips wavs that already exist.
 - **Use a separate `--outdir` per caption set** (`models.json` assumes a single caption set).
 
-## [3] Audition
+### Step 3. Audition
 
 Extract the zip you downloaded from Colab into **this folder's `outputs/`** (`outputs/voice_*.wav` + `outputs/captions.json`),
 then start a simple server here and open `viewer.html`. It **auto-loads `outputs/`** and lists everything.
@@ -147,7 +147,7 @@ Each voice appears with its caption, so you can play through and pick the one yo
 - **Which model made it**: above the list, the page shows the model that generated the voices, e.g. "生成モデル: v3 (Aratako/Irodori-TTS-600M-v3-VoiceDesign)". It reads the `generation.json` that `batch_gen.py` writes into the output folder. Older output without this record shows "記録なし" (no record); if you know the model, drop in a `generation.json` such as `{"id": "v3", "checkpoint": "Aratako/Irodori-TTS-600M-v3-VoiceDesign"}`.
 - **Multi-model output** (`--models`) gets tabs at the top to switch between models, one list per model. Use `viewer.html?dir=outputs-emotions` for a folder with another name, and add `&model=v4.1` to open a specific model.
 
-## [3'] Compare models (`compare.html`)
+#### Compare models (`compare.html`)
 
 Put the output folder from `--models` in this repo, start a server and open `compare.html` (it reads `outputs/` by default; pass `?dir=` for a folder with another name).
 

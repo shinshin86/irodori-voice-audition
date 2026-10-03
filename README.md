@@ -18,7 +18,7 @@ Made for the case where you don't yet have a concrete image of the voice you wan
 [3] Open outputs/ in viewer.html, audition with captions, pick your voice
 ```
 
-You can also generate the same captions with several Irodori models and score them side by side to find **which model best hits the voice or emotion you're after** (`batch_gen.py --models` -> `compare.html`).
+You can also generate the same captions with several Irodori models and audition them in a **caption x model** grid (`batch_gen.py --models` -> `compare.html`).
 
 ## What's inside
 
@@ -30,7 +30,7 @@ You can also generate the same captions with several Irodori models and score th
 | `batch_gen.py` | **Recommended, fast.** Loads the model once and generates all voices (50 in ~107s on a Colab L4) |
 | `colab_generate.py` | Simple fallback. Calls `infer.py` once per caption (slow) |
 | `viewer.html` | Audition the results as a **caption + play button** list (review only, no generation, dependency-free single HTML) |
-| `compare.html` | Audition multi-model output as a **caption x model** grid, score each clip 1-5 and see per-model totals (dependency-free single HTML) |
+| `compare.html` | Audition multi-model output in a grid with **captions as rows and models as columns** (dependency-free single HTML) |
 
 ## Requirements
 
@@ -136,12 +136,12 @@ python3 -m http.server 8000
 # For another folder: http://localhost:8000/compare.html?dir=outputs-emotions
 ```
 
-- Each caption gets a row of models. Play each one, **score it 1-5**, and pick **one ★ best per row**. "▶ 順に再生" (play in order) plays the same caption through every model back to back.
-- The summary table at the top shows each model's average score and ★ count, **broken down by emotion (`tag`)**. The best value in each column is outlined, so you can spot patterns like "v4-large for anger, v4.1 for embarrassment".
-- **Blind mode** hides model names behind "Model A/B/C..." and shuffles the order per row, so you can score without bias (the summary is hidden while blind mode is on).
-- Keyboard: `↑↓` row, `←→` model (plays on move), `Space` play/stop, `1`-`5` score, `B` best, `R` play row in order, `N` next unscored row.
-- Scores are stored in the browser (localStorage). Export them as JSON / CSV; a JSON export can be imported to pick up where you left off.
-- Without a server, drop the output folder (containing `models.json`) onto the page or use "outputs フォルダを選ぶ" (choose outputs folder).
+- Captions run down the rows and models across the columns. Press ▶ in a cell to play that combination (the clip length is shown on the right).
+- **Listen across**: "▶ 横に再生" (play across) on a row plays the same caption through every model in turn, so you hear how each model renders the same description.
+- **Listen down**: "▼ 縦に再生" (play down) on a column header plays one model through every caption from top to bottom, so you hear how the voice changes as the caption (e.g. the emotion) changes.
+- If captions have a `tag` (such as the emotions in `captions_emotions.json`), the buttons above the grid filter to that tag.
+- Keyboard: `←→` model, `↑↓` caption (moving plays that cell), `Space` play/stop, `R` play the current row across, `C` play the current column down.
+- Without a server, drop the output folder (containing `models.json`) onto the page or use "出力フォルダを選ぶ" (choose output folder).
 
 ## Notes
 

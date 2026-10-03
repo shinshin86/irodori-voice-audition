@@ -88,13 +88,31 @@ A fallback for environments where `batch_gen.py` doesn't work. It calls `infer.p
 
 ## [2'] Generate with several models (`--models`)
 
-Pass a comma-separated list to `--models` and the script loads each model in turn and generates the same captions. Output goes to `outputs/<model>/`, and the list is written to `outputs/models.json`.
+Pass a comma-separated list to `--models` and the script loads each model in turn and generates the same captions. Output goes to `<--outdir>/<model>/`, and the list is written to `<--outdir>/models.json` (in the example below, `outputs-emotions/v3/` and so on).
 
 ```bash
 !cd Irodori-TTS && uv run --no-sync python batch_gen.py \
     --captions ../captions_emotions.json --outdir ../outputs-emotions \
     --models v3,v4.1,v4.1-mf,v4-large --seed 0
+
+# Zip and download (extracts to an outputs-emotions/ folder)
+import shutil; shutil.make_archive('voices-emotions','zip',root_dir='.',base_dir='outputs-emotions')
+from google.colab import files; files.download('voices-emotions.zip')
 ```
+
+Measured (Colab L4, the 20 captions in `captions_emotions.json`, fp32):
+
+| Model | Time for 20 clips | Notes |
+|---|---|---|
+| `v3` | ~34s | |
+| `v4.1` | ~37s | |
+| `v4.1-mf` | ~8s | |
+| `v4-large` | ~133s | Peak VRAM ~16.3GB (fits in the L4's 23GB at fp32) |
+
+- The first run downloads the weights (about 21GB for the four models above plus the codec).
+- The zip is about 39MB for 80 clips. If `files.download` stalls, right-click `voices-emotions.zip` in the file browser on the left and download it from there.
+
+Available models:
 
 | Alias | Checkpoint | Notes |
 |---|---|---|

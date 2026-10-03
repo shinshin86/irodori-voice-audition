@@ -88,13 +88,31 @@ uv run --no-sync python infer.py \
 
 ## [2'] 複数モデルで比較生成（`--models`）
 
-`--models` にモデルをカンマ区切りで渡すと、1モデルずつロードして同じキャプションを順に生成します。出力は `outputs/<モデル名>/` に分かれ、一覧が `outputs/models.json` に書かれます。
+`--models` にモデルをカンマ区切りで渡すと、1モデルずつロードして同じキャプションを順に生成します。出力は `<--outdir>/<モデル名>/` に分かれ、一覧が `<--outdir>/models.json` に書かれます（下の例なら `outputs-emotions/v3/` など）。
 
 ```bash
 !cd Irodori-TTS && uv run --no-sync python batch_gen.py \
     --captions ../captions_emotions.json --outdir ../outputs-emotions \
     --models v3,v4.1,v4.1-mf,v4-large --seed 0
+
+# zip してダウンロード（展開すると outputs-emotions/ フォルダになる）
+import shutil; shutil.make_archive('voices-emotions','zip',root_dir='.',base_dir='outputs-emotions')
+from google.colab import files; files.download('voices-emotions.zip')
 ```
+
+実測（Colab L4、`captions_emotions.json` の20件、fp32）:
+
+| モデル | 20件の生成時間 | 備考 |
+|---|---|---|
+| `v3` | 約34秒 | |
+| `v4.1` | 約37秒 | |
+| `v4.1-mf` | 約8秒 | |
+| `v4-large` | 約133秒 | VRAM ピーク約16.3GB（L4 の 23GB に fp32 のまま収まる） |
+
+- 初回は重みのダウンロードがあります（上の4モデルとコーデックで合計約21GB）。
+- zip は80件で約39MB です。`files.download` が途中で止まるときは、左のファイル一覧から `voices-emotions.zip` を右クリックしてダウンロードしてください。
+
+指定できるモデル:
 
 | 短縮名 | チェックポイント | 備考 |
 |---|---|---|

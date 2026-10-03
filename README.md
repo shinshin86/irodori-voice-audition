@@ -128,11 +128,12 @@ Each voice appears with its caption, so you can play through and pick the one yo
 
 ## [3'] Compare models (`compare.html`)
 
-Put the output folder from `--models` at `outputs/` (or rename it to that), start a server and open `compare.html`.
+Put the output folder from `--models` in this repo, start a server and open `compare.html` (it reads `outputs/` by default; pass `?dir=` for a folder with another name).
 
 ```bash
 python3 -m http.server 8000
 # http://localhost:8000/compare.html -> outputs/models.json is shown automatically
+# For another folder: http://localhost:8000/compare.html?dir=outputs-emotions
 ```
 
 - Each caption gets a row of models. Play each one, **score it 1-5**, and pick **one ★ best per row**. "▶ 順に再生" (play in order) plays the same caption through every model back to back.

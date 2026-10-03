@@ -207,13 +207,21 @@
     $('#empty').hidden=true; $('#load').hidden=true; $('#main').hidden=false;
     renderAll();
   }
+  // ?dir=outputs-emotions のように読み込むフォルダを選べる（このページからの相対パスのみ）
+  function outDir(){
+    const d=(new URLSearchParams(location.search).get('dir')||'outputs').replace(/^\/+|\/+$/g,'');
+    return d&&/^[\w.\-\/]+$/.test(d)&&!d.split('/').includes('..')?d:'outputs';
+  }
   async function autoload(){
+    const dir=outDir();
+    $('#empty b').textContent=`${dir}/models.json を探しています…`;
     try{
-      const res=await fetch('outputs/models.json',{cache:'no-store'});
+      const res=await fetch(`${dir}/models.json`,{cache:'no-store'});
       if(!res.ok) throw 0;
       const m=await res.json();
-      start(m,(model,file)=>model.files.has(file)?`outputs/${encodeURIComponent(model.dir)}/${encodeURIComponent(file)}`:null,
-        `outputs/models.json から自動読み込み（${(m.models||[]).length}モデル × ${(m.captions||[]).length}キャプション）`);
+      const enc=dir.split('/').map(encodeURIComponent).join('/');
+      start(m,(model,file)=>model.files.has(file)?`${enc}/${encodeURIComponent(model.dir)}/${encodeURIComponent(file)}`:null,
+        `${dir}/models.json から自動読み込み（${(m.models||[]).length}モデル × ${(m.captions||[]).length}キャプション）`);
     }catch(e){ /* サーバー経由でない/未生成 → 選択・ドロップ待ち */ }
   }
   // パス付きファイル一覧（フォルダ選択・ドロップ）から読み込む

@@ -128,11 +128,12 @@ python3 -m http.server 8000
 
 ## [3'] モデル比較（`compare.html`）
 
-`--models` で生成した出力フォルダを `outputs/` に置いて（または `outputs/` へリネームして）サーバーを立て、`compare.html` を開きます。
+`--models` で生成した出力フォルダをこのリポジトリ直下に置いてサーバーを立て、`compare.html` を開きます（既定は `outputs/`。別名のフォルダは `?dir=` で指定）。
 
 ```bash
 python3 -m http.server 8000
 # http://localhost:8000/compare.html → outputs/models.json を自動表示
+# 別のフォルダなら http://localhost:8000/compare.html?dir=outputs-emotions
 ```
 
 - 各キャプションの下にモデルが横並びになり、それぞれ再生して **1〜5 で採点**、行ごとに **★ でベストを1つ**選べます。「▶ 順に再生」で同じキャプションをモデル順に続けて聴けます。
